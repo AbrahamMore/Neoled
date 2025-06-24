@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
-import 'package:pasos_flutter/components/custom_bottom_nav_bar.dart'; // ← aquí
+import 'package:pasos_flutter/components/custom_bottom.dart'; // ← aquí
 
 class InicioScreen extends StatelessWidget {
   const InicioScreen({super.key});

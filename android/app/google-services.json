@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "726054013915",
+    "project_id": "neoled-mex",
+    "storage_bucket": "neoled-mex.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:726054013915:android:5fc2e904eb77232a3f75fe",
+        "android_client_info": {
+          "package_name": "com.example.pasos_flutter"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "726054013915-7mplkbeff8om132plpptjf7tcj05hg5a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCSUvOay0LEu9HPItSFqQX8Ra4fmVHQYkY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "726054013915-7mplkbeff8om132plpptjf7tcj05hg5a.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

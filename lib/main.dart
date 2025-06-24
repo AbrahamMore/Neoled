@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart'; // 👈 Importante
+import 'firebase_options.dart'; // 👈 Tu archivo generado
+
 import 'package:pasos_flutter/core/app_colors.dart';
 import 'package:pasos_flutter/screens/login.dart';
 import 'package:pasos_flutter/screens/register.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // 👈 Necesario para async en main
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  ); // 👈 Inicializar Firebase
+
   runApp(const MyApp());
 }
 
@@ -107,8 +115,3 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
-
-/*
-En primer lugar, se integró el CLI de Firebase al proyecto de Flutter, lo que permitió trabajar de manera eficiente con operaciones CRUD y consultas a la base de datos, asegurando una comunicación fluida entre la aplicación y el backend. Posteriormente, se configuró el proyecto móvil para garantizar el acceso seguro mediante verificaciones con Firebase, implementando autenticación y permisos adecuados para proteger los datos.
-Se programó el CRUD para el inicio y registro de sesiones en la aplicación NeoLed app, se realizaron pruebas de emulación en distintos dispositivos móviles para verificar la ausencia de errores en la interfaz de usuario y posibles fallos funcionales, asegurando así un rendimiento óptimo en diferentes entornos.
-*/

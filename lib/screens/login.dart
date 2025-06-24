@@ -1,16 +1,29 @@
 // lib/screens/login_screen.dart
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
 import 'package:pasos_flutter/screens/inicio.dart';
 
-class Login extends StatelessWidget {
+class Login extends StatefulWidget {
   const Login({super.key});
 
   @override
+  State<Login> createState() => _LoginState();
+}
+
+class _LoginState extends State<Login> {
+  final emailController = TextEditingController();
+  final passController = TextEditingController();
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final emailController = TextEditingController();
-    final passController = TextEditingController();
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
@@ -50,7 +63,7 @@ class Login extends StatelessWidget {
                 height: screenHeight * 0.58, // aumenta 1/5 más
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.accent,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: ClipRRect(
@@ -144,13 +157,72 @@ class Login extends StatelessWidget {
                             width: double.infinity,
                             height: 38,
                             child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => InicioScreen(),
-                                  ),
-                                );
+                              onPressed: () async {
+                                final email = emailController.text.trim();
+                                final password = passController.text;
+
+                                if (email.isEmpty || password.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Por favor completa todos los campos',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                try {
+                                  // Intentar iniciar sesión con Firebase
+                                  final credential = await FirebaseAuth.instance
+                                      .signInWithEmailAndPassword(
+                                        email: email,
+                                        password: password,
+                                      );
+
+                                  if (!context.mounted) return;
+
+                                  // Verificamos si el email ya está verificado
+                                  if (!credential.user!.emailVerified) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Verifica tu correo antes de iniciar sesión.',
+                                        ),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  // Si todo va bien, navegar al inicio
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const InicioScreen(),
+                                    ),
+                                  );
+                                } on FirebaseAuthException catch (e) {
+                                  String message = 'Error al iniciar sesión';
+
+                                  if (e.code == 'user-not-found') {
+                                    message =
+                                        'No se encontró un usuario con ese correo';
+                                  } else if (e.code == 'wrong-password') {
+                                    message = 'Contraseña incorrecta';
+                                  } else if (e.code == 'invalid-email') {
+                                    message = 'Correo electrónico inválido';
+                                  }
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(message),
+                                      backgroundColor: AppColors.rojo,
+                                    ),
+                                  );
+                                }
                               },
                               style: ButtonStyle(
                                 backgroundColor:

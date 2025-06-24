@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pasos_flutter/components/auth_exception_handler.dart';
+import 'package:pasos_flutter/core/app_colors.dart'; // Widget personalizado para errores
 
 class Register extends StatefulWidget {
   const Register({super.key});
@@ -8,14 +11,18 @@ class Register extends StatefulWidget {
 }
 
 class _RegisterState extends State<Register> {
+  // Controladores para los campos de texto
+  final _formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
   final lastNameController = TextEditingController();
   final emailController = TextEditingController();
   final passController = TextEditingController();
   final confirmPassController = TextEditingController();
 
+  // Variables de estado
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -27,23 +34,51 @@ class _RegisterState extends State<Register> {
     super.dispose();
   }
 
-  void _register() {
-    final password = passController.text;
-    final confirmPassword = confirmPassController.text;
+  Future<void> _registerUser() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Las contraseñas no coinciden')),
+    setState(() => _isLoading = true);
+
+    try {
+      // 1. Crear usuario en Firebase Auth
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passController.text.trim(),
+          );
+
+      // 2. Actualizar perfil del usuario con nombre completo
+      await credential.user!.updateDisplayName(
+        '${nameController.text.trim()} ${lastNameController.text.trim()}',
       );
-      return;
-    }
 
-    // Aquí se conecta Firebase Auth (cuando lo configures)
-    // Ejemplo:
-    // await FirebaseAuth.instance.createUserWithEmailAndPassword(
-    //   email: emailController.text,
-    //   password: password,
-    // );
+      // 3. Enviar verificación por email (opcional)
+      await credential.user!.sendEmailVerification();
+
+      if (!mounted) return;
+
+      // Mostrar mensaje de éxito
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registro exitoso. Por favor verifica tu correo.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Espera breve para que se vea el mensaje
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Luego navegar
+      // ignore: use_build_context_synchronously
+      Navigator.pushReplacementNamed(context, '/verify-email');
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      AuthExceptionHandler.showSnackbar(context, e.code);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -52,10 +87,9 @@ class _RegisterState extends State<Register> {
 
     return Scaffold(
       backgroundColor: Colors.grey[300],
-      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
-          // Fondo superior
+          // Fondo superior (manteniendo tu diseño original)
           Positioned(
             top: 0,
             left: 0,
@@ -83,80 +117,115 @@ class _RegisterState extends State<Register> {
                 right: 20,
                 bottom: 20,
               ),
-              child: Container(
-                height: screenHeight * 0.68,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(30),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Image.asset('assets/images/logo.png', height: 80),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Regístrate ahora',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
+              child: Form(
+                key: _formKey,
+                child: Container(
+                  height: screenHeight * 0.73,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(30),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset('assets/images/logo.png', height: 80),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Regístrate ahora',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
+                          const SizedBox(height: 20),
 
-                        _buildInput('Nombre', nameController),
-                        _buildInput('Apellidos', lastNameController),
-                        _buildInput('E-mail', emailController),
+                          // Campos del formulario con validación
+                          _buildTextFormField(
+                            controller: nameController,
+                            label: 'Nombre',
+                            validator: (value) => value!.isEmpty
+                                ? 'Por favor ingresa tu nombre'
+                                : null,
+                          ),
 
-                        _buildPasswordInput(
-                          label: 'Contraseña',
-                          controller: passController,
-                          obscure: _obscurePassword,
-                          toggle: () => setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          }),
-                        ),
+                          _buildTextFormField(
+                            controller: lastNameController,
+                            label: 'Apellidos',
+                            validator: (value) => value!.isEmpty
+                                ? 'Por favor ingresa tus apellidos'
+                                : null,
+                          ),
 
-                        _buildPasswordInput(
-                          label: 'Confirmar contraseña',
-                          controller: confirmPassController,
-                          obscure: _obscureConfirmPassword,
-                          toggle: () => setState(() {
-                            _obscureConfirmPassword = !_obscureConfirmPassword;
-                          }),
-                        ),
+                          _buildTextFormField(
+                            controller: emailController,
+                            label: 'E-mail',
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) => !value!.contains('@')
+                                ? 'Ingresa un email válido'
+                                : null,
+                          ),
 
-                        const SizedBox(height: 20),
+                          _buildPasswordField(
+                            controller: passController,
+                            label: 'Contraseña',
+                            obscure: _obscurePassword,
+                            toggle: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                            validator: (value) => value!.length < 6
+                                ? 'Mínimo 6 caracteres'
+                                : null,
+                          ),
 
-                        SizedBox(
-                          width: double.infinity,
-                          height: 38,
-                          child: ElevatedButton(
-                            onPressed: _register,
-                            style: ButtonStyle(
-                              backgroundColor: WidgetStateProperty.all(
-                                Colors.yellow,
-                              ),
-                              foregroundColor: WidgetStateProperty.all(
-                                Colors.black,
-                              ),
-                              shape: WidgetStateProperty.all(
-                                RoundedRectangleBorder(
+                          _buildPasswordField(
+                            controller: confirmPassController,
+                            label: 'Confirmar contraseña',
+                            obscure: _obscureConfirmPassword,
+                            toggle: () => setState(
+                              () => _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                            ),
+                            validator: (value) => value != passController.text
+                                ? 'Las contraseñas no coinciden'
+                                : null,
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Botón de registro
+                          SizedBox(
+                            width: double.infinity,
+                            height: 45,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _registerUser,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: AppColors.secondary,
+                                shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(40),
                                 ),
+                                elevation: 2,
                               ),
-                              elevation: WidgetStateProperty.all(2),
-                            ),
-                            child: const Text(
-                              'Registrarse',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              child: _isLoading
+                                  ? const CircularProgressIndicator(
+                                      color: AppColors.secondary,
+                                      strokeWidth: 2,
+                                    )
+                                  : const Text(
+                                      'Registrarse',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -168,11 +237,18 @@ class _RegisterState extends State<Register> {
     );
   }
 
-  Widget _buildInput(String label, TextEditingController controller) {
+  // Widgets reutilizables (podrías moverlos a /components/)
+  Widget _buildTextFormField({
+    required TextEditingController controller,
+    required String label,
+    TextInputType? keyboardType,
+    required String? Function(String?) validator,
+  }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextField(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextFormField(
         controller: controller,
+        keyboardType: keyboardType,
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -181,19 +257,21 @@ class _RegisterState extends State<Register> {
             vertical: 14,
           ),
         ),
+        validator: validator,
       ),
     );
   }
 
-  Widget _buildPasswordInput({
-    required String label,
+  Widget _buildPasswordField({
     required TextEditingController controller,
+    required String label,
     required bool obscure,
     required VoidCallback toggle,
+    required String? Function(String?) validator,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextField(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextFormField(
         controller: controller,
         obscureText: obscure,
         decoration: InputDecoration(
@@ -204,10 +282,14 @@ class _RegisterState extends State<Register> {
             vertical: 14,
           ),
           suffixIcon: IconButton(
-            icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+            icon: Icon(
+              obscure ? Icons.visibility_off : Icons.visibility,
+              color: Colors.grey,
+            ),
             onPressed: toggle,
           ),
         ),
+        validator: validator,
       ),
     );
   }
