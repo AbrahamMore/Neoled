@@ -1,4 +1,3 @@
-// lib/screens/login_screen.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
@@ -14,12 +13,18 @@ class Login extends StatefulWidget {
 class _LoginState extends State<Login> {
   final emailController = TextEditingController();
   final passController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
     emailController.dispose();
     passController.dispose();
     super.dispose();
+  }
+
+  bool isValidEmail(String email) {
+    final emailRegex = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
+    return emailRegex.hasMatch(email);
   }
 
   @override
@@ -49,7 +54,7 @@ class _LoginState extends State<Login> {
             ),
           ),
 
-          // Formulario con scroll y altura extendida
+          // Formulario con scroll
           Align(
             alignment: Alignment.topCenter,
             child: Padding(
@@ -60,22 +65,21 @@ class _LoginState extends State<Login> {
                 bottom: 20,
               ),
               child: SizedBox(
-                height: screenHeight * 0.58, // aumenta 1/5 más
+                height: screenHeight * 0.58,
                 child: Container(
                   decoration: BoxDecoration(
                     color: AppColors.accent,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                      30,
-                    ), // ¡esto mantiene los bordes durante scroll!
+                    borderRadius: BorderRadius.circular(30),
                     child: SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Logo
                           Image.asset('assets/images/logo.png', height: 80),
                           const SizedBox(height: 10),
                           const Text(
@@ -92,6 +96,7 @@ class _LoginState extends State<Login> {
                             padding: const EdgeInsets.symmetric(vertical: 8.0),
                             child: TextField(
                               controller: emailController,
+                              keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
                                 labelText: 'Correo electrónico',
                                 border: OutlineInputBorder(
@@ -105,12 +110,12 @@ class _LoginState extends State<Login> {
                             ),
                           ),
 
-                          // Contraseña
+                          // Contraseña con botón mostrar/ocultar
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8.0),
                             child: TextField(
                               controller: passController,
-                              obscureText: true,
+                              obscureText: _obscurePassword,
                               decoration: InputDecoration(
                                 labelText: 'Contraseña',
                                 border: OutlineInputBorder(
@@ -120,11 +125,22 @@ class _LoginState extends State<Login> {
                                   horizontal: 16,
                                   vertical: 14,
                                 ),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                                ),
                               ),
                             ),
                           ),
 
-                          // Enlace
                           Align(
                             alignment: Alignment.centerLeft,
                             child: TextButton(
@@ -152,7 +168,7 @@ class _LoginState extends State<Login> {
 
                           const SizedBox(height: 20),
 
-                          // Botón
+                          // Botón iniciar sesión
                           SizedBox(
                             width: double.infinity,
                             height: 38,
@@ -160,6 +176,10 @@ class _LoginState extends State<Login> {
                               onPressed: () async {
                                 final email = emailController.text.trim();
                                 final password = passController.text;
+
+                                FocusScope.of(
+                                  context,
+                                ).unfocus(); // Cierra teclado
 
                                 if (email.isEmpty || password.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -173,8 +193,19 @@ class _LoginState extends State<Login> {
                                   return;
                                 }
 
+                                if (!isValidEmail(email)) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'El correo ingresado no es válido',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
                                 try {
-                                  // Intentar iniciar sesión con Firebase
                                   final credential = await FirebaseAuth.instance
                                       .signInWithEmailAndPassword(
                                         email: email,
@@ -183,7 +214,6 @@ class _LoginState extends State<Login> {
 
                                   if (!context.mounted) return;
 
-                                  // Verificamos si el email ya está verificado
                                   if (!credential.user!.emailVerified) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
@@ -196,7 +226,12 @@ class _LoginState extends State<Login> {
                                     return;
                                   }
 
-                                  // Si todo va bien, navegar al inicio
+                                  // Pequeña espera para evitar parpadeos
+                                  await Future.delayed(
+                                    const Duration(milliseconds: 200),
+                                  );
+
+                                  // Navegación limpia
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(

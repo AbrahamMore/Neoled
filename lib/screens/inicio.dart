@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
-import 'package:pasos_flutter/components/custom_bottom.dart'; // ← aquí
+
+// Pantallas de navegación interna
+import 'clientes.dart';
+import 'agregar_cliente.dart';
+import 'inventario.dart';
 
 class InicioScreen extends StatelessWidget {
   const InicioScreen({super.key});
@@ -8,7 +12,7 @@ class InicioScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.secondary,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
@@ -19,7 +23,7 @@ class InicioScreen extends StatelessWidget {
         title: const Text(
           'NEOLEDMEX',
           style: TextStyle(
-            color: Colors.black,
+            color: AppColors.secondary,
             fontWeight: FontWeight.bold,
             letterSpacing: 1.2,
           ),
@@ -54,26 +58,31 @@ class InicioScreen extends StatelessWidget {
                     runSpacing: 16,
                     children: [
                       _buildFixedToolCard(
+                        context,
                         Icons.person,
                         'Clientes',
                         AppColors.azul,
                       ),
                       _buildFixedToolCard(
+                        context,
                         Icons.sell,
                         'Ventas',
                         AppColors.verde,
                       ),
                       _buildFixedToolCard(
+                        context,
                         Icons.local_shipping,
                         'Proveedores',
                         AppColors.rojo,
                       ),
                       _buildFixedToolCard(
+                        context,
                         Icons.people,
                         'Empleados',
                         AppColors.primary,
                       ),
                       _buildFixedToolCard(
+                        context,
                         Icons.inventory,
                         'Inventario',
                         AppColors.morado,
@@ -86,43 +95,73 @@ class InicioScreen extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: CustomBottomNavBar(
-        currentIndex: 0, // ← este será el índice activo
-        onTap: (index) {
-          // Puedes manejar navegación aquí si lo deseas
-          // Navigator.pushNamed(context, '/ventas');
-        },
-      ),
     );
   }
 
-  Widget _buildFixedToolCard(IconData icon, String label, Color color) {
-    return Container(
-      width: 140,
-      height: 120,
-      decoration: BoxDecoration(
-        color: color,
+  Widget _buildFixedToolCard(
+    BuildContext context,
+    IconData icon,
+    String label,
+    Color color,
+  ) {
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 4,
+      child: InkWell(
+        onTap: () {
+          switch (label) {
+            case 'Clientes':
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ClientesScreen()),
+              );
+              break;
+            case 'Ventas':
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AgregarCliente()),
+              );
+              break;
+            case 'Proveedores':
+              // Cambia por la pantalla correcta si existe
+              break;
+            case 'Empleados':
+              // Cambia por la pantalla correcta si existe
+              break;
+            case 'Inventario':
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const InventarioScreen()),
+              );
+              break;
+          }
+        },
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(2, 4)),
-        ],
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 36, color: AppColors.accent),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppColors.accent,
-                fontSize: 14,
+        // ignore: deprecated_member_use
+        splashColor: Colors.white.withOpacity(0.3),
+        // ignore: deprecated_member_use
+        highlightColor: Colors.white.withOpacity(0.15),
+        child: Container(
+          width: 140,
+          height: 120,
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 36, color: AppColors.accent),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.accent,
+                  fontSize: 14,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
