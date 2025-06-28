@@ -3,7 +3,7 @@ import 'package:pasos_flutter/core/app_colors.dart';
 
 // Pantallas de navegación interna
 import 'clientes.dart';
-import 'agregar_cliente.dart';
+// import 'agregar_cliente.dart';
 import 'inventario.dart';
 
 class InicioScreen extends StatelessWidget {
@@ -118,10 +118,6 @@ class InicioScreen extends StatelessWidget {
               );
               break;
             case 'Ventas':
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AgregarCliente()),
-              );
               break;
             case 'Proveedores':
               // Cambia por la pantalla correcta si existe

@@ -5,7 +5,7 @@ class AppColors {
   static const Color primary = Color(0xFFFFEB3B);
   static const Color secondary = Color(0xFF000000);
   static const Color accent = Color(0xFFFFFFFF);
-  static const Color cafecin = Color(0xFFFFDEBF);
+  static const Color gris = Color.fromARGB(255, 31, 31, 31);
 
   // Botones de el menu de inicio
   static const Color azul = Color(0xFF57A0FF);

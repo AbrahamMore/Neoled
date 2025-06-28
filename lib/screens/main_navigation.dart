@@ -43,7 +43,7 @@ class _MainNavigationState extends State<MainNavigation> {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.sell), label: 'Clientes'),
+          BottomNavigationBarItem(icon: Icon(Icons.sell), label: 'Ventas'),
           BottomNavigationBarItem(icon: Icon(Icons.swap_horiz), label: 'Movs'),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),

@@ -1,142 +1,129 @@
 import 'package:flutter/material.dart';
-import 'package:pasos_flutter/components/custom_bottom.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
 
 class AgregarCliente extends StatefulWidget {
-  const AgregarCliente({super.key});
+  final String? clienteId;
+  final Map<String, dynamic>? clienteData;
+
+  const AgregarCliente({super.key, this.clienteId, this.clienteData});
 
   @override
   State<AgregarCliente> createState() => _AgregarClienteState();
 }
 
 class _AgregarClienteState extends State<AgregarCliente> {
-  int _currentIndex = 1;
+  final TextEditingController _nombreController = TextEditingController();
+  final TextEditingController _apellidosController = TextEditingController();
+  final TextEditingController _direccionController = TextEditingController();
+  final TextEditingController _telefonoController = TextEditingController();
+  final TextEditingController _correoController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.clienteData != null) {
+      _nombreController.text = widget.clienteData!['nombre'] ?? '';
+      _apellidosController.text = widget.clienteData!['apellidos'] ?? '';
+      _direccionController.text = widget.clienteData!['direccion'] ?? '';
+      _telefonoController.text = widget.clienteData!['telefono'] ?? '';
+      _correoController.text = widget.clienteData!['correo'] ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _apellidosController.dispose();
+    _direccionController.dispose();
+    _telefonoController.dispose();
+    _correoController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Fondo fijo fuera del Scaffold
         Positioned.fill(
           child: Image.asset('assets/images/estrellas.jpg', fit: BoxFit.cover),
         ),
-
-        // Contenido sobre el fondo
         Scaffold(
-          backgroundColor: Colors.transparent, // transparente para ver el fondo
-          resizeToAvoidBottomInset: true, // permite scroll al aparecer teclado
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: AppColors.primary,
-            elevation: 0,
-            title: const Text(
-              'Clientes',
-              style: TextStyle(
+            title: Text(
+              widget.clienteId == null ? 'Agregar Cliente' : 'Editar Cliente',
+              style: const TextStyle(
                 color: AppColors.secondary,
                 fontWeight: FontWeight.bold,
               ),
             ),
             centerTitle: true,
             leading: IconButton(
-              icon: const Icon(Icons.menu, color: AppColors.secondary),
-              onPressed: () {},
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.search, color: AppColors.secondary),
-                onPressed: () {},
-              ),
-            ],
-          ),
-          body: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(
-                    20,
-                    16,
-                    20,
-                    20,
-                  ), // Padding fijo
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight:
-                          constraints.maxHeight -
-                          MediaQuery.of(context).viewInsets.bottom,
-                    ),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 10),
-                        Center(child: _buildAvatar()),
-                        const SizedBox(height: 15),
-                        _buildFormField('Nombre', Icons.person),
-                        const SizedBox(height: 15),
-                        _buildFormField('Apellidos', Icons.person_outline),
-                        const SizedBox(height: 15),
-                        _buildFormField('Dirección', Icons.location_on),
-                        const SizedBox(height: 15),
-                        _buildFormField(
-                          'Teléfono',
-                          Icons.phone,
-                          TextInputType.phone,
-                        ),
-                        const SizedBox(height: 15),
-                        _buildFormField(
-                          'Correo Electrónico',
-                          Icons.email,
-                          TextInputType.emailAddress,
-                        ),
-                        // Espacio para el teclado (opcional)
-                        SizedBox(
-                          height: MediaQuery.of(context).viewInsets.bottom > 0
-                              ? MediaQuery.of(context).viewInsets.bottom
-                              : 0,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+              icon: const Icon(Icons.arrow_back, color: AppColors.secondary),
+              onPressed: () => Navigator.pop(context),
             ),
           ),
-
-          // Botón fijo abajo
-          bottomNavigationBar: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
+            child: Column(
+              children: [
+                Center(child: _buildAvatar()),
+                const SizedBox(height: 15),
+                _buildFormField('Nombre', Icons.person, _nombreController),
+                const SizedBox(height: 15),
+                _buildFormField(
+                  'Apellidos',
+                  Icons.person_outline,
+                  _apellidosController,
                 ),
-                child: ElevatedButton(
-                  onPressed: () => _guardarCliente(context),
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStateProperty.all(AppColors.verde),
-                    foregroundColor: WidgetStateProperty.all(AppColors.accent),
-                    shape: WidgetStateProperty.all(
-                      RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 15),
+                _buildFormField(
+                  'Dirección',
+                  Icons.location_on,
+                  _direccionController,
+                ),
+                const SizedBox(height: 15),
+                _buildFormField(
+                  'Teléfono',
+                  Icons.phone,
+                  _telefonoController,
+                  TextInputType.phone,
+                ),
+                const SizedBox(height: 15),
+                _buildFormField(
+                  'Correo Electrónico',
+                  Icons.email,
+                  _correoController,
+                  TextInputType.emailAddress,
+                ),
+              ],
+            ),
+          ),
+          bottomNavigationBar: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : () => _guardarCliente(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.verde,
+                foregroundColor: AppColors.accent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: AppColors.accent)
+                  : const Text(
+                      'Guardar',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
                     ),
-                    minimumSize: WidgetStateProperty.all(
-                      const Size(double.infinity, 50),
-                    ),
-                    overlayColor: WidgetStateProperty.all(Colors.white24),
-                  ),
-                  child: const Text(
-                    'Guardar',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                ),
-              ),
-              CustomBottomNavBar(
-                currentIndex: _currentIndex,
-                onTap: (index) {
-                  setState(() => _currentIndex = index);
-                  _navigateTo(index, context);
-                },
-              ),
-            ],
+            ),
           ),
         ),
       ],
@@ -164,54 +151,145 @@ class _AgregarClienteState extends State<AgregarCliente> {
     );
   }
 
-  Widget _buildFormField(String label, IconData icon, [TextInputType? type]) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
-      child: TextFormField(
-        keyboardType: type,
-        style: const TextStyle(
-          color: AppColors.rojo,
+  Widget _buildFormField(
+    String label,
+    IconData icon,
+    TextEditingController controller, [
+    TextInputType? type,
+  ]) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: type,
+      style: const TextStyle(
+        color: AppColors.secondary,
+        fontWeight: FontWeight.normal,
+        fontSize: 16,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(
+          color: AppColors.secondary,
           fontWeight: FontWeight.bold,
-          fontSize: 16,
         ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(
-            color: AppColors.secondary,
-            fontWeight: FontWeight.bold,
-          ),
-          prefixIcon: Icon(icon, color: AppColors.secondary),
-          filled: true,
-          fillColor: AppColors.accent,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 18,
-          ),
+        prefixIcon: Icon(icon, color: AppColors.secondary),
+        filled: true,
+        fillColor: AppColors.accent,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 18,
         ),
       ),
     );
   }
 
-  void _guardarCliente(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cliente guardado exitosamente')),
-    );
-    Navigator.pop(context);
+  Future<void> _guardarCliente(BuildContext context) async {
+    final nombre = _nombreController.text.trim();
+    final apellidos = _apellidosController.text.trim();
+    final direccion = _direccionController.text.trim();
+    final telefono = _telefonoController.text.trim();
+    final correo = _correoController.text.trim();
+
+    if ([
+      nombre,
+      apellidos,
+      direccion,
+      telefono,
+      correo,
+    ].any((e) => e.isEmpty)) {
+      _mostrarMensajeError('Por favor completa todos los campos');
+      return;
+    }
+
+    final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
+    if (!emailRegex.hasMatch(correo)) {
+      _mostrarMensajeError('Correo electrónico inválido');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final clientesRef = FirebaseFirestore.instance.collection('clientes');
+
+      final telefonoQuery = await clientesRef
+          .where('telefono', isEqualTo: telefono)
+          .get();
+      final correoQuery = await clientesRef
+          .where('correo', isEqualTo: correo)
+          .get();
+
+      bool telefonoExiste = telefonoQuery.docs.any(
+        (doc) => doc.id != widget.clienteId,
+      );
+      bool correoExiste = correoQuery.docs.any(
+        (doc) => doc.id != widget.clienteId,
+      );
+
+      if (telefonoExiste && correoExiste) {
+        _mostrarMensajeError(
+          'El teléfono y el correo electrónico ya están registrados',
+        );
+        return;
+      } else if (telefonoExiste) {
+        _mostrarMensajeError('El teléfono ya está registrado');
+        return;
+      } else if (correoExiste) {
+        _mostrarMensajeError('El correo electrónico ya está registrado');
+        return;
+      }
+
+      if (widget.clienteId != null) {
+        await clientesRef.doc(widget.clienteId).update({
+          'nombre': nombre,
+          'apellidos': apellidos,
+          'direccion': direccion,
+          'telefono': telefono,
+          'correo': correo,
+        });
+      } else {
+        await clientesRef.add({
+          'nombre': nombre,
+          'apellidos': apellidos,
+          'direccion': direccion,
+          'telefono': telefono,
+          'correo': correo,
+          'fecha_registro': FieldValue.serverTimestamp(),
+        });
+      }
+
+      _mostrarMensajeExito('Cliente guardado exitosamente');
+
+      await Future.delayed(const Duration(seconds: 1));
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      _mostrarMensajeError('Error al guardar: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  void _navigateTo(int index, BuildContext context) {
-    switch (index) {
-      case 0:
-        Navigator.pushNamed(context, '/home');
-        break;
-      case 1:
-        break;
-      default:
-        Navigator.pop(context);
-    }
+  void _mostrarMensajeError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _mostrarMensajeExito(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 }
