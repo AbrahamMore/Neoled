@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
-import 'package:pasos_flutter/components/custom_bottom.dart';
-import 'package:pasos_flutter/screens/agregar_cliente.dart';
+// import 'package:pasos_flutter/components/custom_bottom.dart';
 import 'package:pasos_flutter/screens/detalle_cliente.dart';
+import 'package:pasos_flutter/screens/agregar_cliente.dart';
 
 class ClientesScreen extends StatefulWidget {
   const ClientesScreen({super.key});
@@ -14,30 +14,9 @@ class ClientesScreen extends StatefulWidget {
 
 class _ClientesScreenState extends State<ClientesScreen> {
   int currentIndex = 0;
-  String searchText = '';
-  bool showSearch = false;
-  int limit = 10;
-
+  bool _isSearching = false;
+  String _searchText = '';
   final TextEditingController _searchController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent) {
-        loadMore();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
 
   void onTapNav(int index) {
     setState(() => currentIndex = index);
@@ -61,25 +40,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   Query getClientesQuery() {
-    Query query = FirebaseFirestore.instance
+    return FirebaseFirestore.instance
         .collection('clientes')
-        .orderBy('nombre')
-        .limit(limit);
-
-    if (searchText.isNotEmpty) {
-      final searchLower = searchText.toLowerCase();
-      query = query
-          .where('nombreLower', isGreaterThanOrEqualTo: searchLower)
-          .where('nombreLower', isLessThanOrEqualTo: '$searchLower\uf8ff');
-    }
-
-    return query;
-  }
-
-  void loadMore() {
-    setState(() {
-      limit += 10;
-    });
+        .orderBy('nombre'); // Orden alfabético por nombre
   }
 
   @override
@@ -88,43 +51,46 @@ class _ClientesScreenState extends State<ClientesScreen> {
       backgroundColor: AppColors.secondary,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: AppColors.secondary),
-          onPressed: () {},
-        ),
-        title: showSearch
+        centerTitle: true,
+        title: _isSearching
             ? TextField(
                 controller: _searchController,
-                onChanged: (value) => setState(() => searchText = value.trim()),
                 autofocus: true,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.secondary),
                 decoration: const InputDecoration(
                   hintText: 'Buscar cliente...',
                   hintStyle: TextStyle(color: Colors.white60),
                   border: InputBorder.none,
                 ),
+                onChanged: (value) {
+                  setState(() => _searchText = value.toLowerCase());
+                },
               )
             : const Text(
                 'Clientes',
                 style: TextStyle(
                   color: AppColors.secondary,
                   fontWeight: FontWeight.bold,
+                  fontSize: 20,
                 ),
               ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.secondary),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           IconButton(
             icon: Icon(
-              showSearch ? Icons.close : Icons.search,
+              _isSearching ? Icons.close : Icons.search,
               color: AppColors.secondary,
             ),
             onPressed: () {
               setState(() {
-                showSearch = !showSearch;
-                if (!showSearch) {
-                  searchText = '';
+                if (_isSearching) {
                   _searchController.clear();
+                  _searchText = '';
                 }
+                _isSearching = !_isSearching;
               });
             },
           ),
@@ -211,27 +177,36 @@ class _ClientesScreenState extends State<ClientesScreen> {
                         );
                       }
 
-                      final clientes = snapshot.data!.docs;
+                      final todosLosClientes = snapshot.data!.docs;
+
+                      // Filtrar por nombre o teléfono
+                      final clientesFiltrados = todosLosClientes.where((doc) {
+                        final nombre = (doc['nombre'] ?? '')
+                            .toString()
+                            .toLowerCase();
+                        final telefono = (doc['telefono'] ?? '')
+                            .toString()
+                            .toLowerCase();
+                        return nombre.contains(_searchText) ||
+                            telefono.contains(_searchText);
+                      }).toList();
+
+                      if (clientesFiltrados.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'No se encontraron coincidencias.',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        );
+                      }
 
                       return ListView.builder(
-                        controller: _scrollController,
-                        itemCount: clientes.length + 1,
+                        itemCount: clientesFiltrados.length,
                         itemBuilder: (context, index) {
-                          if (index == clientes.length) {
-                            return Center(
-                              child: TextButton(
-                                onPressed: loadMore,
-                                child: const Text(
-                                  'Cargar más...',
-                                  style: TextStyle(color: AppColors.accent),
-                                ),
-                              ),
-                            );
-                          }
-
-                          final cliente = clientes[index];
-                          final nombre = cliente['nombre'];
-                          final telefono = cliente['telefono'];
+                          final cliente = clientesFiltrados[index];
+                          final nombre = cliente['nombre'] ?? 'Sin nombre';
+                          final telefono =
+                              cliente['telefono'] ?? 'Sin teléfono';
 
                           return Card(
                             color: AppColors.accent,
@@ -296,10 +271,10 @@ class _ClientesScreenState extends State<ClientesScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: CustomBottomNavBar(
-        currentIndex: currentIndex,
-        onTap: onTapNav,
-      ),
+      // bottomNavigationBar: CustomBottomNavBar(
+      //   currentIndex: currentIndex,
+      //   onTap: onTapNav,
+      // ),
     );
   }
 }

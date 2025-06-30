@@ -46,6 +46,7 @@ class _AgregarClienteState extends State<AgregarCliente> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        // Fondo con imagen
         Positioned.fill(
           child: Image.asset('assets/images/estrellas.jpg', fit: BoxFit.cover),
         ),
@@ -53,6 +54,7 @@ class _AgregarClienteState extends State<AgregarCliente> {
           backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: AppColors.primary,
+            centerTitle: true, // Título centrado
             title: Text(
               widget.clienteId == null ? 'Agregar Cliente' : 'Editar Cliente',
               style: const TextStyle(
@@ -60,7 +62,6 @@ class _AgregarClienteState extends State<AgregarCliente> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            centerTitle: true,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: AppColors.secondary),
               onPressed: () => Navigator.pop(context),
@@ -250,6 +251,7 @@ class _AgregarClienteState extends State<AgregarCliente> {
           'telefono': telefono,
           'correo': correo,
         });
+        _mostrarMensajeExito('Cliente actualizado exitosamente');
       } else {
         await clientesRef.add({
           'nombre': nombre,
@@ -259,12 +261,11 @@ class _AgregarClienteState extends State<AgregarCliente> {
           'correo': correo,
           'fecha_registro': FieldValue.serverTimestamp(),
         });
+        _mostrarMensajeExito('Cliente agregado exitosamente');
       }
 
-      _mostrarMensajeExito('Cliente guardado exitosamente');
-
       await Future.delayed(const Duration(seconds: 1));
-
+      // ignore: use_build_context_synchronously
       if (mounted) Navigator.pop(context);
     } catch (e) {
       _mostrarMensajeError('Error al guardar: ${e.toString()}');

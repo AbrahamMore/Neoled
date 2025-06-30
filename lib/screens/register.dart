@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // <-- Agregado
 import 'package:pasos_flutter/components/auth_exception_handler.dart';
 import 'package:pasos_flutter/core/app_colors.dart'; // Widget personalizado para errores
 
@@ -55,6 +56,19 @@ class _RegisterState extends State<Register> {
       // 3. Enviar verificación por email (opcional)
       await credential.user!.sendEmailVerification();
 
+      // 4. Guardar información adicional en Firestore
+      await FirebaseFirestore.instance
+          .collection('usuarios') // Colección donde guardas usuarios
+          .doc(credential.user!.uid)
+          .set({
+            'uid': credential.user!.uid,
+            'nombre': nameController.text.trim(),
+            'apellidos': lastNameController.text.trim(),
+            'email': emailController.text.trim(),
+            'rol': 'cliente', // Puedes cambiar o manejar roles aquí
+            'fechaRegistro': FieldValue.serverTimestamp(),
+          });
+
       if (!mounted) return;
 
       // Mostrar mensaje de éxito
@@ -65,11 +79,7 @@ class _RegisterState extends State<Register> {
         ),
       );
 
-      // Espera breve para que se vea el mensaje
       await Future.delayed(const Duration(seconds: 2));
-
-      // Luego navegar
-      // ignore: use_build_context_synchronously
       Navigator.pushReplacementNamed(context, '/verify-email');
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;

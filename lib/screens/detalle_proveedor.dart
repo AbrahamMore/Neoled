@@ -2,85 +2,74 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
 
-class DetalleCliente extends StatefulWidget {
-  final String clienteId;
-  final Map<String, dynamic> clienteData;
+class DetalleProveedorScreen extends StatefulWidget {
+  final DocumentSnapshot proveedor;
 
-  const DetalleCliente({
-    super.key,
-    required this.clienteId,
-    required this.clienteData,
-  });
+  const DetalleProveedorScreen({super.key, required this.proveedor});
 
   @override
-  State<DetalleCliente> createState() => _DetalleClienteState();
+  State<DetalleProveedorScreen> createState() => _DetalleProveedorScreenState();
 }
 
-class _DetalleClienteState extends State<DetalleCliente> {
+class _DetalleProveedorScreenState extends State<DetalleProveedorScreen> {
   late TextEditingController _nombreController;
   late TextEditingController _telefonoController;
-  late TextEditingController _correoController;
   late TextEditingController _direccionController;
-  late TextEditingController _notasController;
+  late TextEditingController _descripcionController;
 
   @override
   void initState() {
     super.initState();
-    _nombreController = TextEditingController(
-      text: widget.clienteData['nombre'],
-    );
+    _nombreController = TextEditingController(text: widget.proveedor['nombre']);
     _telefonoController = TextEditingController(
-      text: widget.clienteData['telefono'],
-    );
-    _correoController = TextEditingController(
-      text: widget.clienteData['correo'],
+      text: widget.proveedor['telefono'],
     );
     _direccionController = TextEditingController(
-      text: widget.clienteData['direccion'],
+      text: widget.proveedor['direccion'] ?? '',
     );
-    _notasController = TextEditingController(text: widget.clienteData['notas']);
+    _descripcionController = TextEditingController(
+      text: widget.proveedor['descripcion'] ?? '',
+    );
   }
 
   @override
   void dispose() {
     _nombreController.dispose();
     _telefonoController.dispose();
-    _correoController.dispose();
     _direccionController.dispose();
-    _notasController.dispose();
+    _descripcionController.dispose();
     super.dispose();
   }
 
   void _guardarCambios() async {
     await FirebaseFirestore.instance
-        .collection('clientes')
-        .doc(widget.clienteId)
+        .collection('proveedores')
+        .doc(widget.proveedor.id)
         .update({
           'nombre': _nombreController.text,
           'telefono': _telefonoController.text,
-          'correo': _correoController.text,
           'direccion': _direccionController.text,
-          'notas': _notasController.text,
+          'descripcion': _descripcionController.text,
         });
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cliente actualizado correctamente')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Proveedor actualizado')));
       Navigator.pop(context);
     }
   }
 
-  void _eliminarCliente() async {
+  void _eliminarProveedor() async {
     await FirebaseFirestore.instance
-        .collection('clientes')
-        .doc(widget.clienteId)
+        .collection('proveedores')
+        .doc(widget.proveedor.id)
         .delete();
 
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Cliente eliminado')));
+      ).showSnackBar(const SnackBar(content: Text('Proveedor eliminado')));
       Navigator.pop(context);
     }
   }
@@ -88,27 +77,23 @@ class _DetalleClienteState extends State<DetalleCliente> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: false, // ← Mantiene el fondo fijo
       appBar: AppBar(
         title: const Text(
-          'Detalle del Cliente',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.secondary,
-          ),
+          'Detalle del Proveedor',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: AppColors.secondary),
       ),
       body: Stack(
         children: [
+          // Fondo fijo
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/estrellas.jpg',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/images/oficina.png', fit: BoxFit.cover),
           ),
+
+          // Scroll con altura mínima para evitar espacio en blanco
           LayoutBuilder(
             builder: (context, constraints) {
               return SingleChildScrollView(
@@ -118,30 +103,35 @@ class _DetalleClienteState extends State<DetalleCliente> {
                   child: IntrinsicHeight(
                     child: Column(
                       children: [
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 30), // espacio bajo el AppBar
+
                         _buildCampo('Nombre', _nombreController, Icons.person),
                         const SizedBox(height: 16),
+
                         _buildCampo(
                           'Teléfono',
                           _telefonoController,
                           Icons.phone,
+                          isNumber: false,
                         ),
                         const SizedBox(height: 16),
-                        _buildCampo('Correo', _correoController, Icons.email),
-                        const SizedBox(height: 16),
+
                         _buildCampo(
                           'Dirección',
                           _direccionController,
                           Icons.location_on,
+                          maxLines: 2,
                         ),
                         const SizedBox(height: 16),
+
                         _buildCampo(
-                          'Notas',
-                          _notasController,
-                          Icons.note,
+                          'Descripción',
+                          _descripcionController,
+                          Icons.description,
                           maxLines: 3,
                         ),
                         const SizedBox(height: 24),
+
                         // Botón Guardar
                         SizedBox(
                           width: double.infinity,
@@ -164,11 +154,12 @@ class _DetalleClienteState extends State<DetalleCliente> {
                           ),
                         ),
                         const SizedBox(height: 16),
+
                         // Botón Eliminar
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: _eliminarCliente,
+                            onPressed: _eliminarProveedor,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.secondary,
                               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -177,7 +168,7 @@ class _DetalleClienteState extends State<DetalleCliente> {
                               ),
                             ),
                             child: const Text(
-                              'Eliminar Cliente',
+                              'Eliminar Proveedor',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: AppColors.primary,
@@ -203,9 +194,11 @@ class _DetalleClienteState extends State<DetalleCliente> {
     TextEditingController controller,
     IconData icon, {
     int maxLines = 1,
+    bool isNumber = false,
   }) {
     return TextField(
       controller: controller,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       maxLines: maxLines,
       decoration: InputDecoration(
         labelText: label,

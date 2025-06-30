@@ -1,12 +1,9 @@
-// lib/screens/main_navigation.dart
 import 'package:flutter/material.dart';
-import 'inicio.dart';
-// import 'ventas.dart';
-// import 'estadisticas.dart';
-// import 'movimientos.dart';
-// import 'cuenta.dart';
+import 'package:pasos_flutter/screens/inicio.dart';
+import 'package:pasos_flutter/screens/movimientos.dart';
+import 'package:pasos_flutter/screens/estadisticas.dart';
+import 'package:pasos_flutter/screens/cuenta.dart';
 
-// main_navigation.dart
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
@@ -17,11 +14,11 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    InicioScreen(),
-    // MovimientosScreen(),
-    // EstadisticasScreen(),
-    // CuentaScreen(),
+  final List<Widget> _screens = [
+    const InicioScreen(),
+    const MovimientosScreen(),
+    const EstadisticasScreen(),
+    CuentaScreen(),
   ];
 
   void _onTap(int index) {
@@ -43,7 +40,6 @@ class _MainNavigationState extends State<MainNavigation> {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.sell), label: 'Ventas'),
           BottomNavigationBarItem(icon: Icon(Icons.swap_horiz), label: 'Movs'),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),

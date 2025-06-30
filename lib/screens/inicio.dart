@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
-
-// Pantallas de navegación interna
-import 'clientes.dart';
-// import 'agregar_cliente.dart';
-import 'inventario.dart';
+import 'package:pasos_flutter/screens/inventario.dart';
+import 'package:pasos_flutter/screens/clientes.dart';
+import 'package:pasos_flutter/screens/proveedores.dart';
 
 class InicioScreen extends StatelessWidget {
   const InicioScreen({super.key});
@@ -120,7 +118,10 @@ class InicioScreen extends StatelessWidget {
             case 'Ventas':
               break;
             case 'Proveedores':
-              // Cambia por la pantalla correcta si existe
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProveedoresScreen()),
+              );
               break;
             case 'Empleados':
               // Cambia por la pantalla correcta si existe

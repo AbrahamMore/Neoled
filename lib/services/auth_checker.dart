@@ -1,4 +1,3 @@
-// lib/services/auth_checker.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:pasos_flutter/screens/main_navigation.dart';
@@ -21,9 +20,9 @@ class AuthChecker extends StatelessWidget {
         if (snapshot.hasData && snapshot.data != null) {
           final user = snapshot.data!;
           if (user.emailVerified) {
-            return const MainNavigation(); // <- aquí va el navbar con pestañas
+            return const MainNavigation(); // Usuario autenticado y email verificado
           } else {
-            return const WelcomeScreen(); // Si el email no está verificado
+            return const WelcomeScreen(); // Email no verificado
           }
         } else {
           return const WelcomeScreen(); // Usuario no autenticado

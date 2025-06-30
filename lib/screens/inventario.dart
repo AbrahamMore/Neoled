@@ -155,7 +155,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
                               name: producto['nombre'],
                               price: producto['precio'],
                               quantity: producto['cantidad'].toString(),
-                              imagePath: 'assets/producto.png',
+                              imagePath: 'assets/images/icon.png',
                             ),
                           );
                         },

@@ -22,7 +22,6 @@ class CustomBottomNavBar extends StatelessWidget {
       onTap: onTap,
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-        BottomNavigationBarItem(icon: Icon(Icons.sell), label: 'Ventas'),
         BottomNavigationBarItem(
           icon: Icon(Icons.bar_chart),
           label: 'Estadísticas',
