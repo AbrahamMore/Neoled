@@ -3,6 +3,7 @@ import 'package:pasos_flutter/core/app_colors.dart';
 import 'package:pasos_flutter/screens/inventario.dart';
 import 'package:pasos_flutter/screens/clientes.dart';
 import 'package:pasos_flutter/screens/proveedores.dart';
+import 'package:pasos_flutter/screens/ventas.dart';
 
 class InicioScreen extends StatelessWidget {
   const InicioScreen({super.key});
@@ -116,6 +117,10 @@ class InicioScreen extends StatelessWidget {
               );
               break;
             case 'Ventas':
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const VentasScreen()),
+              );
               break;
             case 'Proveedores':
               Navigator.push(

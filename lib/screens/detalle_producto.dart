@@ -90,7 +90,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
         children: [
           // Fondo fijo
           Positioned.fill(
-            child: Image.asset('assets/images/oficina.png', fit: BoxFit.cover),
+            child: Image.asset('assets/images/planeta.png', fit: BoxFit.cover),
           ),
 
           // Scroll con altura mínima para evitar espacio en blanco

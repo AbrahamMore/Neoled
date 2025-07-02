@@ -1,6 +1,8 @@
+// ... (tus imports siguen igual)
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pasos_flutter/core/app_colors.dart';
 
 class CuentaScreen extends StatefulWidget {
   const CuentaScreen({super.key});
@@ -26,7 +28,6 @@ class _CuentaScreenState extends State<CuentaScreen> {
 
   Future<void> _loadUserData() async {
     user = FirebaseAuth.instance.currentUser;
-
     if (user != null) {
       final uid = user!.uid;
       final doc = await FirebaseFirestore.instance
@@ -140,93 +141,179 @@ class _CuentaScreenState extends State<CuentaScreen> {
 
   void _cerrarSesion() async {
     await FirebaseAuth.instance.signOut();
-    // No navegamos manualmente, AuthChecker se encargará de mostrar pantalla correcta
+  }
+
+  Widget _buildCampo(
+    String label,
+    TextEditingController controller,
+    IconData icon, {
+    bool enabled = true,
+  }) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: AppColors.accent,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        leading: const BackButton(color: Colors.white),
-        backgroundColor: Colors.black,
+        leading: const BackButton(color: AppColors.secondary),
+        backgroundColor: AppColors.primary,
         centerTitle: true,
-        title: const Text('Mi Cuenta', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Mi Cuenta',
+          style: TextStyle(color: AppColors.secondary),
+        ),
       ),
-      body: userData == null
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _editando
-                      ? TextField(
-                          controller: _nombreController,
-                          decoration: const InputDecoration(
-                            labelText: 'Nombre',
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset('assets/images/grapa.png', fit: BoxFit.cover),
+          ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 30),
+                        // Ícono de usuario centrado
+                        const CircleAvatar(
+                          radius: 45,
+                          backgroundColor: AppColors.accent,
+                          child: Icon(
+                            Icons.person,
+                            size: 60,
+                            color: AppColors.primary,
                           ),
-                        )
-                      : Text(
-                          'Nombre: ${userData!['nombre']}',
-                          style: const TextStyle(fontSize: 18),
                         ),
-                  const SizedBox(height: 10),
-                  _editando
-                      ? TextField(
-                          controller: _apellidosController,
-                          decoration: const InputDecoration(
-                            labelText: 'Apellidos',
+                        const SizedBox(height: 30),
+
+                        _buildCampo('Nombre', _nombreController, Icons.person),
+                        const SizedBox(height: 16),
+                        _buildCampo(
+                          'Apellidos',
+                          _apellidosController,
+                          Icons.person_2,
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        )
-                      : Text(
-                          'Apellidos: ${userData!['apellidos']}',
-                          style: const TextStyle(fontSize: 18),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.email),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  user?.email ?? '',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Correo: ${user!.email}',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[700]),
-                  ),
-                  const SizedBox(height: 30),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ElevatedButton.icon(
-                        icon: Icon(_editando ? Icons.save : Icons.edit),
-                        label: Text(_editando ? 'Guardar' : 'Editar'),
-                        onPressed: () {
-                          if (_editando) {
-                            _guardarCambios();
-                          } else {
-                            setState(() => _editando = true);
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
+                        const SizedBox(height: 20),
+
+                        // Botón Guardar/Editar
+                        FractionallySizedBox(
+                          widthFactor: 0.66,
+                          child: ElevatedButton.icon(
+                            onPressed: _editando
+                                ? _guardarCambios
+                                : () {
+                                    setState(() => _editando = true);
+                                  },
+                            icon: Icon(_editando ? Icons.save : Icons.edit),
+                            label: Text(
+                              _editando ? 'Guardar Cambios' : 'Editar',
+                              style: const TextStyle(
+                                color: AppColors.secondary,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 20),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.logout),
-                        label: const Text('Cerrar sesión'),
-                        onPressed: _cerrarSesion,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
+                        const SizedBox(height: 10),
+
+                        // Botón Cambiar Contraseña
+                        FractionallySizedBox(
+                          widthFactor: 0.66,
+                          child: ElevatedButton.icon(
+                            onPressed: _cambiarContrasena,
+                            icon: const Icon(
+                              Icons.lock,
+                              color: AppColors.primary,
+                            ),
+                            label: const Text(
+                              'Cambiar contraseña',
+                              style: TextStyle(color: AppColors.primary),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.secondary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.lock),
-                    label: const Text('Cambiar contraseña'),
-                    onPressed: _cambiarContrasena,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
+                        const SizedBox(height: 90),
+
+                        // Botón Cerrar Sesión
+                        FractionallySizedBox(
+                          widthFactor: 0.66,
+                          child: ElevatedButton.icon(
+                            onPressed: _cerrarSesion,
+                            icon: const Icon(
+                              Icons.logout,
+                              color: AppColors.accent,
+                            ),
+                            label: const Text(
+                              'Cerrar sesión',
+                              style: TextStyle(color: AppColors.accent),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.rojo,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

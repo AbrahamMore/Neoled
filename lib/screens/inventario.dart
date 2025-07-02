@@ -38,7 +38,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset('assets/images/oficina.png', fit: BoxFit.cover),
+            child: Image.asset('assets/images/planeta.png', fit: BoxFit.cover),
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),
