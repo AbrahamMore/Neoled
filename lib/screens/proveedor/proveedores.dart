@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
-import 'package:pasos_flutter/screens/agregar_proveedor.dart';
-import 'package:pasos_flutter/screens/detalle_proveedor.dart'; // Import necesario
+import 'package:pasos_flutter/screens/proveedor/agregar_proveedor.dart';
+import 'package:pasos_flutter/screens/proveedor/detalle_proveedor.dart'; // Import necesario
 
 class ProveedoresScreen extends StatefulWidget {
   const ProveedoresScreen({super.key});

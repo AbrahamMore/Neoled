@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
 // import 'package:pasos_flutter/components/custom_bottom.dart';
-import 'package:pasos_flutter/screens/detalle_cliente.dart';
-import 'package:pasos_flutter/screens/agregar_cliente.dart';
+import 'package:pasos_flutter/screens/cliente/detalle_cliente.dart';
+import 'package:pasos_flutter/screens/cliente/agregar_cliente.dart';
 
 class ClientesScreen extends StatefulWidget {
   const ClientesScreen({super.key});

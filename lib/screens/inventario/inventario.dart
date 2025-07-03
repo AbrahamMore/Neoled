@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
 import 'agregar_inventario.dart';
-import 'detalle_producto.dart';
+import 'detalle_inventario.dart';
 
 class InventarioScreen extends StatefulWidget {
   const InventarioScreen({super.key});

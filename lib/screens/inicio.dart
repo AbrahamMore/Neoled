@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
-import 'package:pasos_flutter/screens/inventario.dart';
-import 'package:pasos_flutter/screens/clientes.dart';
-import 'package:pasos_flutter/screens/proveedores.dart';
-import 'package:pasos_flutter/screens/ventas.dart';
+import 'package:pasos_flutter/screens/inventario/inventario.dart';
+import 'package:pasos_flutter/screens/cliente/clientes.dart';
+import 'package:pasos_flutter/screens/proveedor/proveedores.dart';
+import 'package:pasos_flutter/screens/ventas/ventas.dart';
+import 'package:pasos_flutter/screens/gastos.dart';
 
 class InicioScreen extends StatelessWidget {
   const InicioScreen({super.key});
@@ -35,59 +36,128 @@ class InicioScreen extends StatelessWidget {
           ),
           Align(
             alignment: Alignment.center,
-            child: Container(
-              width: 360,
-              decoration: BoxDecoration(
-                // ignore: deprecated_member_use
-                color: Colors.white.withOpacity(0.95),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              padding: const EdgeInsets.all(20),
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Herramientas',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  const SizedBox(height: 16),
+
+                  // Nueva sección: Administrar negocio
+                  Container(
+                    width: 360,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Administrar negocio',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                /* … */
+                              },
+                              icon: const Icon(
+                                Icons.store,
+                                color: AppColors.secondary,
+                              ),
+                              label: const Text(
+                                'Negocio',
+                                style: TextStyle(color: AppColors.secondary),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                fixedSize: const Size(280, 60),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Sección de herramientas
+                  Container(
+                    width: 360,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Herramientas',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 16,
+                          runSpacing: 16,
+                          children: [
+                            _buildFixedToolCard(
+                              context,
+                              Icons.person,
+                              'Clientes',
+                              AppColors.azul,
+                            ),
+
+                            _buildFixedToolCard(
+                              context,
+                              Icons.local_shipping,
+                              'Proveedores',
+                              AppColors.rojo,
+                            ),
+                            _buildFixedToolCard(
+                              context,
+                              Icons.people,
+                              'Empleados',
+                              AppColors.primary,
+                            ),
+                            _buildFixedToolCard(
+                              context,
+                              Icons.inventory,
+                              'Inventario',
+                              AppColors.morado,
+                            ),
+                            _buildFixedToolCard(
+                              context,
+                              Icons.sell,
+                              'Ventas',
+                              AppColors.verde,
+                            ),
+                            _buildFixedToolCard(
+                              context,
+                              Icons.money_off,
+                              'Gastos',
+                              AppColors.rosa,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 16,
-                    runSpacing: 16,
-                    children: [
-                      _buildFixedToolCard(
-                        context,
-                        Icons.person,
-                        'Clientes',
-                        AppColors.azul,
-                      ),
-                      _buildFixedToolCard(
-                        context,
-                        Icons.sell,
-                        'Ventas',
-                        AppColors.verde,
-                      ),
-                      _buildFixedToolCard(
-                        context,
-                        Icons.local_shipping,
-                        'Proveedores',
-                        AppColors.rojo,
-                      ),
-                      _buildFixedToolCard(
-                        context,
-                        Icons.people,
-                        'Empleados',
-                        AppColors.primary,
-                      ),
-                      _buildFixedToolCard(
-                        context,
-                        Icons.inventory,
-                        'Inventario',
-                        AppColors.morado,
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
@@ -129,7 +199,7 @@ class InicioScreen extends StatelessWidget {
               );
               break;
             case 'Empleados':
-              // Cambia por la pantalla correcta si existe
+              // implementar si tienes pantalla
               break;
             case 'Inventario':
               Navigator.push(
@@ -137,12 +207,16 @@ class InicioScreen extends StatelessWidget {
                 MaterialPageRoute(builder: (_) => const InventarioScreen()),
               );
               break;
+            case 'Gastos':
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RegistroGastosScreen()),
+              ); // Asegúrate de tenerla
+              break;
           }
         },
         borderRadius: BorderRadius.circular(16),
-        // ignore: deprecated_member_use
         splashColor: Colors.white.withOpacity(0.3),
-        // ignore: deprecated_member_use
         highlightColor: Colors.white.withOpacity(0.15),
         child: Container(
           width: 140,
