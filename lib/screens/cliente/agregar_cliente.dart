@@ -54,7 +54,7 @@ class _AgregarClienteState extends State<AgregarCliente> {
           backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: AppColors.primary,
-            centerTitle: true, // Título centrado
+            centerTitle: true,
             title: Text(
               widget.clienteId == null ? 'Agregar Cliente' : 'Editar Cliente',
               style: const TextStyle(
@@ -73,7 +73,7 @@ class _AgregarClienteState extends State<AgregarCliente> {
               children: [
                 Center(child: _buildAvatar()),
                 const SizedBox(height: 15),
-                _buildFormField('Nombre', Icons.person, _nombreController),
+                _buildFormField('Nombre*', Icons.person, _nombreController),
                 const SizedBox(height: 15),
                 _buildFormField(
                   'Apellidos',
@@ -88,7 +88,7 @@ class _AgregarClienteState extends State<AgregarCliente> {
                 ),
                 const SizedBox(height: 15),
                 _buildFormField(
-                  'Teléfono',
+                  'Teléfono*',
                   Icons.phone,
                   _telefonoController,
                   TextInputType.phone,
@@ -100,6 +100,7 @@ class _AgregarClienteState extends State<AgregarCliente> {
                   _correoController,
                   TextInputType.emailAddress,
                 ),
+                const SizedBox(height: 10),
               ],
             ),
           ),
@@ -110,10 +111,13 @@ class _AgregarClienteState extends State<AgregarCliente> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.verde,
                 foregroundColor: AppColors.accent,
+                minimumSize: const Size(
+                  double.infinity,
+                  50,
+                ), // Esto va aquí, no dentro del shape
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                minimumSize: const Size(double.infinity, 50),
               ),
               child: _isLoading
                   ? const CircularProgressIndicator(color: AppColors.accent)
@@ -189,26 +193,24 @@ class _AgregarClienteState extends State<AgregarCliente> {
 
   Future<void> _guardarCliente(BuildContext context) async {
     final nombre = _nombreController.text.trim();
-    final apellidos = _apellidosController.text.trim();
-    final direccion = _direccionController.text.trim();
     final telefono = _telefonoController.text.trim();
     final correo = _correoController.text.trim();
 
-    if ([
-      nombre,
-      apellidos,
-      direccion,
-      telefono,
-      correo,
-    ].any((e) => e.isEmpty)) {
-      _mostrarMensajeError('Por favor completa todos los campos');
+    // Validar solo campos obligatorios
+    if (nombre.isEmpty || telefono.isEmpty) {
+      _mostrarMensajeError(
+        'Por favor completa los campos obligatorios (Nombre y Telefono)',
+      );
       return;
     }
 
-    final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
-    if (!emailRegex.hasMatch(correo)) {
-      _mostrarMensajeError('Correo electrónico inválido');
-      return;
+    // Validar formato de correo solo si se proporcionó
+    if (correo.isNotEmpty) {
+      final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
+      if (!emailRegex.hasMatch(correo)) {
+        _mostrarMensajeError('Correo electrónico inválido');
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -216,19 +218,25 @@ class _AgregarClienteState extends State<AgregarCliente> {
     try {
       final clientesRef = FirebaseFirestore.instance.collection('clientes');
 
+      // Verificar si el teléfono ya existe
       final telefonoQuery = await clientesRef
           .where('telefono', isEqualTo: telefono)
-          .get();
-      final correoQuery = await clientesRef
-          .where('correo', isEqualTo: correo)
           .get();
 
       bool telefonoExiste = telefonoQuery.docs.any(
         (doc) => doc.id != widget.clienteId,
       );
-      bool correoExiste = correoQuery.docs.any(
-        (doc) => doc.id != widget.clienteId,
-      );
+
+      // Verificar si el correo ya existe solo si se proporcionó
+      bool correoExiste = false;
+      if (correo.isNotEmpty) {
+        final correoQuery = await clientesRef
+            .where('correo', isEqualTo: correo)
+            .get();
+        correoExiste = correoQuery.docs.any(
+          (doc) => doc.id != widget.clienteId,
+        );
+      }
 
       if (telefonoExiste && correoExiste) {
         _mostrarMensajeError(
@@ -243,29 +251,31 @@ class _AgregarClienteState extends State<AgregarCliente> {
         return;
       }
 
+      // Preparar datos para guardar
+      final clienteData = {
+        'nombre': nombre,
+        'telefono': telefono,
+        'fecha_registro': FieldValue.serverTimestamp(),
+      };
+
+      // Agregar campos opcionales solo si tienen valor
+      final apellidos = _apellidosController.text.trim();
+      if (apellidos.isNotEmpty) clienteData['apellidos'] = apellidos;
+
+      final direccion = _direccionController.text.trim();
+      if (direccion.isNotEmpty) clienteData['direccion'] = direccion;
+
+      if (correo.isNotEmpty) clienteData['correo'] = correo;
+
       if (widget.clienteId != null) {
-        await clientesRef.doc(widget.clienteId).update({
-          'nombre': nombre,
-          'apellidos': apellidos,
-          'direccion': direccion,
-          'telefono': telefono,
-          'correo': correo,
-        });
+        await clientesRef.doc(widget.clienteId).update(clienteData);
         _mostrarMensajeExito('Cliente actualizado exitosamente');
       } else {
-        await clientesRef.add({
-          'nombre': nombre,
-          'apellidos': apellidos,
-          'direccion': direccion,
-          'telefono': telefono,
-          'correo': correo,
-          'fecha_registro': FieldValue.serverTimestamp(),
-        });
+        await clientesRef.add(clienteData);
         _mostrarMensajeExito('Cliente agregado exitosamente');
       }
 
       await Future.delayed(const Duration(seconds: 1));
-      // ignore: use_build_context_synchronously
       if (mounted) Navigator.pop(context);
     } catch (e) {
       _mostrarMensajeError('Error al guardar: ${e.toString()}');

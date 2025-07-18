@@ -4,7 +4,8 @@ import 'package:pasos_flutter/screens/inventario/inventario.dart';
 import 'package:pasos_flutter/screens/cliente/clientes.dart';
 import 'package:pasos_flutter/screens/proveedor/proveedores.dart';
 import 'package:pasos_flutter/screens/ventas/ventas.dart';
-import 'package:pasos_flutter/screens/gastos.dart';
+import 'package:pasos_flutter/screens/gastos/gastos.dart';
+import 'package:pasos_flutter/screens/almacen/almacen.dart'; // Asegúrate de importar la pantalla de almacén
 
 class InicioScreen extends StatelessWidget {
   const InicioScreen({super.key});
@@ -65,24 +66,73 @@ class InicioScreen extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                /* … */
-                              },
-                              icon: const Icon(
-                                Icons.store,
-                                color: AppColors.secondary,
-                              ),
-                              label: const Text(
-                                'Negocio',
-                                style: TextStyle(color: AppColors.secondary),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                            // Botón de Negocio
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
                                 ),
-                                fixedSize: const Size(280, 60),
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    /* Acción para negocio */
+                                  },
+                                  icon: const Icon(
+                                    Icons.store,
+                                    color: AppColors.secondary,
+                                  ),
+                                  label: const Text(
+                                    'Negocio',
+                                    style: TextStyle(
+                                      color: AppColors.secondary,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Botón de Almacén
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const AlmacenScreen(),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.warehouse,
+                                    color: AppColors.secondary,
+                                  ),
+                                  label: const Text(
+                                    'Almacén',
+                                    style: TextStyle(
+                                      color: AppColors.secondary,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -91,6 +141,7 @@ class InicioScreen extends StatelessWidget {
                     ),
                   ),
 
+                  // Resto del código se mantiene igual...
                   // Sección de herramientas
                   Container(
                     width: 360,
@@ -167,6 +218,7 @@ class InicioScreen extends StatelessWidget {
     );
   }
 
+  // Resto del código se mantiene igual...
   Widget _buildFixedToolCard(
     BuildContext context,
     IconData icon,
@@ -210,7 +262,7 @@ class InicioScreen extends StatelessWidget {
             case 'Gastos':
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const RegistroGastosScreen()),
+                MaterialPageRoute(builder: (_) => const GastosScreen()),
               ); // Asegúrate de tenerla
               break;
           }

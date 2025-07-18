@@ -2,28 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
-import 'package:pasos_flutter/screens/seleccionar_productos.dart';
-import 'package:intl/intl.dart';
+import 'package:pasos_flutter/screens/gastos/seleccionar_productos.dart';
+import 'package:pasos_flutter/screens/gastos/Historial_gastos.dart';
 
-class RegistroGastosScreen extends StatefulWidget {
-  const RegistroGastosScreen({super.key});
+class GastosScreen extends StatefulWidget {
+  const GastosScreen({super.key});
 
   @override
-  State<RegistroGastosScreen> createState() => _RegistroGastosScreenState();
+  State<GastosScreen> createState() => _GastosScreenState();
 }
 
-class _RegistroGastosScreenState extends State<RegistroGastosScreen> {
+class _GastosScreenState extends State<GastosScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nombreController = TextEditingController();
   final TextEditingController _valorController = TextEditingController();
-  final TextEditingController _fechaController = TextEditingController();
   final TextEditingController _proveedorController = TextEditingController();
 
   String _categoriaSeleccionada = 'Servicios públicos';
+  String _rolUsuario = 'usuario';
   String _tipoPagoSeleccionado = 'Efectivo';
   String? _proveedorSeleccionado;
   List<Map<String, dynamic>> _productosSeleccionados = [];
   double _valorTotalProductos = 0.0;
+  DateTime? _fechaSeleccionada;
 
   final List<String> _categorias = [
     'Servicios públicos',
@@ -45,32 +46,11 @@ class _RegistroGastosScreenState extends State<RegistroGastosScreen> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _fechaController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
-  }
-
-  @override
   void dispose() {
     _nombreController.dispose();
     _valorController.dispose();
-    _fechaController.dispose();
     _proveedorController.dispose();
     super.dispose();
-  }
-
-  Future<void> _seleccionarFecha(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        _fechaController.text = DateFormat('yyyy-MM-dd').format(picked);
-      });
-    }
   }
 
   Future<void> _mostrarSeleccionProductos() async {
@@ -108,6 +88,34 @@ class _RegistroGastosScreenState extends State<RegistroGastosScreen> {
     });
   }
 
+  Future<void> _seleccionarFecha(BuildContext context) async {
+    final DateTime? fecha = await showDatePicker(
+      context: context,
+      initialDate: _fechaSeleccionada ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(), // Esto evita seleccionar fechas futuras
+      helpText: 'Selecciona la fecha del gasto',
+    );
+
+    if (fecha != null) {
+      // Validación adicional por si acaso (aunque el date picker ya no permite futuras)
+      if (fecha.isAfter(DateTime.now())) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pueden registrar gastos con fecha futura'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        setState(() {
+          _fechaSeleccionada = fecha;
+        });
+      }
+    }
+  }
+
   Future<void> _registrarGasto() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -115,6 +123,31 @@ class _RegistroGastosScreenState extends State<RegistroGastosScreen> {
     if (user == null) return;
 
     try {
+      // Obtener el rol del usuario (si existe)
+      final userDoc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(user.uid)
+          .get();
+
+      // Si no existe el campo 'rol', se usará 'usuario' por defecto
+      final rol = userDoc.data()?['rol']?.toString() ?? 'usuario';
+
+      setState(() {
+        _rolUsuario = rol; // Actualizamos el estado si lo necesitamos después
+      });
+
+      DateTime fechaActual = DateTime.now();
+      DateTime fechaCombinada = _fechaSeleccionada != null
+          ? DateTime(
+              _fechaSeleccionada!.year,
+              _fechaSeleccionada!.month,
+              _fechaSeleccionada!.day,
+              fechaActual.hour,
+              fechaActual.minute,
+              fechaActual.second,
+            )
+          : fechaActual;
+
       final gastoData = {
         'nombre': _nombreController.text.isNotEmpty
             ? _nombreController.text
@@ -123,11 +156,11 @@ class _RegistroGastosScreenState extends State<RegistroGastosScreen> {
         'valor': _categoriaSeleccionada == 'Compra de productos e insumos'
             ? _valorTotalProductos
             : double.parse(_valorController.text),
-        'fecha': _fechaController.text,
         'tipoPago': _tipoPagoSeleccionado,
         'usuarioId': user.uid,
         'usuarioNombre': user.displayName ?? user.email,
-        'fechaRegistro': FieldValue.serverTimestamp(),
+        'fecha': Timestamp.fromDate(fechaCombinada),
+        'rolUsuario': rol, // Añadimos el rol al documento
       };
 
       if (_proveedorSeleccionado != null) {
@@ -145,7 +178,6 @@ class _RegistroGastosScreenState extends State<RegistroGastosScreen> {
               .collection('inventario')
               .doc(producto['id']);
 
-          // Asegúrate de incrementar la cantidad correctamente
           batch.update(productoRef, {
             'cantidad': FieldValue.increment(
               producto['cantidadSeleccionada'] ?? 1,
@@ -160,9 +192,21 @@ class _RegistroGastosScreenState extends State<RegistroGastosScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gasto registrado exitosamente')),
+          SnackBar(
+            content: const Text('Gasto registrado exitosamente'),
+            backgroundColor: Colors.green,
+          ),
         );
-        Navigator.pop(context);
+
+        // Limpiar el formulario
+        _formKey.currentState?.reset();
+        _nombreController.clear();
+        _valorController.clear();
+        _proveedorSeleccionado = null;
+        _productosSeleccionados = [];
+        _valorTotalProductos = 0.0;
+        _fechaSeleccionada = null;
+        setState(() {});
       }
     } catch (e) {
       if (mounted) {
@@ -180,6 +224,19 @@ class _RegistroGastosScreenState extends State<RegistroGastosScreen> {
         title: const Text('Registrar Gasto'),
         backgroundColor: AppColors.primary,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HistorialGastosScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -303,6 +360,7 @@ class _RegistroGastosScreenState extends State<RegistroGastosScreen> {
                           }).toList(),
                         ],
                       ),
+
                     const SizedBox(height: 16),
                   ],
                 ),
@@ -376,27 +434,31 @@ class _RegistroGastosScreenState extends State<RegistroGastosScreen> {
                   return null;
                 },
               ),
+
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _fechaController,
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Fecha',
-                  prefixIcon: const Icon(Icons.calendar_today),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.calendar_today),
+                      label: Text(
+                        _fechaSeleccionada != null
+                            ? 'Fecha: ${_fechaSeleccionada!.day}/${_fechaSeleccionada!.month}/${_fechaSeleccionada!.year}'
+                            : 'Seleccionar fecha',
+                      ),
+                      onPressed: () => _seleccionarFecha(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.secondary,
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
                   ),
-                ),
-                onTap: () => _seleccionarFecha(context),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Seleccione una fecha';
-                  }
-                  return null;
-                },
+                ],
               ),
-              const SizedBox(height: 24),
+
+              const SizedBox(height: 20),
 
               ElevatedButton(
                 onPressed: _registrarGasto,
@@ -409,7 +471,7 @@ class _RegistroGastosScreenState extends State<RegistroGastosScreen> {
                 ),
                 child: const Text(
                   'Registrar Gasto',
-                  style: TextStyle(fontSize: 16, color: Colors.white),
+                  style: TextStyle(color: AppColors.secondary),
                 ),
               ),
             ],

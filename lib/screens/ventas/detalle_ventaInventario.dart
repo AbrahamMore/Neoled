@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
+import 'detalle_venta_widgets.dart'; // Importamos el archivo de widgets
 
 class DetalleVentaScreen extends StatefulWidget {
   final List<Map<String, dynamic>> productosSeleccionados;
@@ -25,6 +26,15 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
   final TextEditingController _nombreVentaController = TextEditingController();
   String? _clienteSeleccionadoId;
   String? _clienteSeleccionadoNombre;
+  DateTime? _fechaSeleccionada;
+  String? _proveedorSeleccionado;
+  String? _tipoPagoSeleccionado;
+  final List<String> _tiposPago = [
+    'Efectivo',
+    'Tarjeta',
+    'Transferencia',
+    'Crédito',
+  ];
 
   @override
   void initState() {
@@ -59,11 +69,46 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
     });
   }
 
+  Future<void> _seleccionarFecha(BuildContext context) async {
+    final DateTime? fecha = await showDatePicker(
+      context: context,
+      initialDate: _fechaSeleccionada ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      helpText: 'Selecciona la fecha de la venta',
+    );
+    if (fecha != null) {
+      setState(() {
+        _fechaSeleccionada = fecha;
+      });
+    }
+  }
+
   Future<void> _finalizarVenta() async {
     if (_nombreVentaController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('El nombre de la venta es obligatorio'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_fechaSeleccionada == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes seleccionar una fecha para la venta'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_tipoPagoSeleccionado == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona un tipo de pago'),
           backgroundColor: Colors.red,
         ),
       );
@@ -86,24 +131,28 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
 
     try {
       final user = _auth.currentUser;
-      if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo identificar al usuario'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
+      if (user == null) throw Exception('Usuario no autenticado');
+
+      DateTime now = DateTime.now();
+      DateTime fechaConHora = DateTime(
+        _fechaSeleccionada!.year,
+        _fechaSeleccionada!.month,
+        _fechaSeleccionada!.day,
+        now.hour,
+        now.minute,
+        now.second,
+      );
 
       final ventaRef = await _firestore.collection('ventas').add({
         'usuarioId': user.uid,
         'usuarioNombre': user.displayName ?? 'Sin nombre',
-        'fecha': FieldValue.serverTimestamp(),
+        'fecha': Timestamp.fromDate(fechaConHora),
         'total': _totalVenta,
         'nombreVenta': _nombreVentaController.text.trim(),
         'clienteId': _clienteSeleccionadoId,
         'clienteNombre': _clienteSeleccionadoNombre,
+        'proveedorId': _proveedorSeleccionado,
+        'tipoPago': _tipoPagoSeleccionado,
         'productos': _productosSeleccionados.map((producto) {
           return {
             'id': producto['id'],
@@ -147,18 +196,6 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
 
   Future<void> _seleccionarCliente() async {
     final clientes = await _firestore.collection('clientes').get();
-    clientes.docs.map((doc) {
-      final data = doc.data();
-      return SimpleDialogOption(
-        onPressed: () {
-          Navigator.pop(context, {
-            'id': doc.id,
-            'nombre': data['nombre'] ?? 'Sin nombre',
-          });
-        },
-        child: Text(data['nombre'] ?? 'Sin nombre'),
-      );
-    }).toList();
 
     final resultado = await showDialog<Map<String, String>>(
       context: context,
@@ -206,10 +243,12 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
       ),
       body: Column(
         children: [
+          // Sección de formulario
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
               children: [
+                // Campo de nombre de venta
                 TextField(
                   controller: _nombreVentaController,
                   decoration: InputDecoration(
@@ -222,38 +261,53 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.person),
-                        label: Text(
-                          _clienteSeleccionadoNombre != null
-                              ? 'Cliente: $_clienteSeleccionadoNombre'
-                              : 'Seleccionar cliente',
-                        ),
-                        onPressed: _seleccionarCliente,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.secondary,
-                        ),
-                      ),
-                    ),
-                    if (_clienteSeleccionadoNombre != null)
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.red),
-                        onPressed: () {
-                          setState(() {
-                            _clienteSeleccionadoId = null;
-                            _clienteSeleccionadoNombre = null;
-                          });
-                        },
-                      ),
-                  ],
+
+                // Selector de cliente
+                ClienteSelector(
+                  clienteNombre: _clienteSeleccionadoNombre,
+                  onSeleccionar: _seleccionarCliente,
+                  onEliminar: () {
+                    setState(() {
+                      _clienteSeleccionadoId = null;
+                      _clienteSeleccionadoNombre = null;
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
+
+                // Selector de fecha
+                FechaSelector(
+                  fecha: _fechaSeleccionada,
+                  onSeleccionar: () => _seleccionarFecha(context),
+                ),
+                const SizedBox(height: 8),
+
+                // Selector de proveedor
+                ProveedorSelector(
+                  proveedorSeleccionado: _proveedorSeleccionado,
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _proveedorSeleccionado = newValue;
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
+
+                // Selector de tipo de pago
+                PagoSelector(
+                  tipoPagoSeleccionado: _tipoPagoSeleccionado,
+                  tiposPago: _tiposPago,
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _tipoPagoSeleccionado = newValue;
+                    });
+                  },
                 ),
               ],
             ),
           ),
+
+          // Lista de productos
           Expanded(
             child: _productosSeleccionados.isEmpty
                 ? const Center(child: Text('No hay productos seleccionados'))
@@ -261,122 +315,44 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
                     itemCount: _productosSeleccionados.length,
                     itemBuilder: (context, index) {
                       final producto = _productosSeleccionados[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.shopping_cart,
-                            color: AppColors.secondary,
-                          ),
-                          title: Text(producto['nombre']),
-                          subtitle: Text(
-                            'Precio: \$${producto['precio'].toStringAsFixed(2)}',
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.remove),
-                                onPressed: () {
-                                  if (producto['cantidadSeleccionada'] > 1) {
-                                    _actualizarCantidad(
-                                      index,
-                                      producto['cantidadSeleccionada'] - 1,
-                                    );
-                                  } else {
-                                    _eliminarProducto(index);
-                                  }
-                                },
-                              ),
-                              Text(producto['cantidadSeleccionada'].toString()),
-                              IconButton(
-                                icon: const Icon(Icons.add),
-                                onPressed: () {
-                                  if (producto['cantidadSeleccionada'] <
-                                      producto['cantidad']) {
-                                    _actualizarCantidad(
-                                      index,
-                                      producto['cantidadSeleccionada'] + 1,
-                                    );
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'No hay suficiente stock de ${producto['nombre']}',
-                                        ),
-                                        backgroundColor: Colors.orange,
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: AppColors.rojo,
+                      return ProductoItem(
+                        producto: producto,
+                        onIncrement: () {
+                          if (producto['cantidadSeleccionada'] <
+                              producto['cantidad']) {
+                            _actualizarCantidad(
+                              index,
+                              producto['cantidadSeleccionada'] + 1,
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'No hay suficiente stock de ${producto['nombre']}',
                                 ),
-                                onPressed: () => _eliminarProducto(index),
+                                backgroundColor: Colors.orange,
                               ),
-                            ],
-                          ),
-                        ),
+                            );
+                          }
+                        },
+                        onDecrement: () {
+                          if (producto['cantidadSeleccionada'] > 1) {
+                            _actualizarCantidad(
+                              index,
+                              producto['cantidadSeleccionada'] - 1,
+                            );
+                          } else {
+                            _eliminarProducto(index);
+                          }
+                        },
+                        onEliminar: () => _eliminarProducto(index),
                       );
                     },
                   ),
           ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              border: Border(top: BorderSide(color: Colors.grey[300]!)),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Total:',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '\$${_totalVenta.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.secondary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _finalizarVenta,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.secondary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Finalizar Venta',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+
+          // Panel de total y botón
+          TotalPanel(total: _totalVenta, onFinalizar: _finalizarVenta),
         ],
       ),
     );

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pasos_flutter/screens/inicio.dart';
-import 'package:pasos_flutter/screens/movimientos.dart';
+import 'package:pasos_flutter/screens/movimientos/movimientos.dart';
 import 'package:pasos_flutter/screens/estadisticas.dart';
 import 'package:pasos_flutter/screens/cuenta.dart';
 
