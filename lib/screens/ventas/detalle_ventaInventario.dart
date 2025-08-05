@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
-import 'detalle_venta_widgets.dart'; // Importamos el archivo de widgets
+import 'detalle_venta_widgets.dart';
 
 class DetalleVentaScreen extends StatefulWidget {
   final List<Map<String, dynamic>> productosSeleccionados;
@@ -59,13 +60,17 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
   void _actualizarCantidad(int index, int nuevaCantidad) {
     setState(() {
       _productosSeleccionados[index]['cantidadSeleccionada'] = nuevaCantidad;
+      _productosSeleccionados[index]['subtotal'] =
+          _productosSeleccionados[index]['precio'] * nuevaCantidad;
       _calcularTotal();
     });
   }
 
   void _calcularTotal() {
     _totalVenta = _productosSeleccionados.fold(0.0, (total, producto) {
-      return total + (producto['precio'] * producto['cantidadSeleccionada']);
+      return total +
+          (producto['subtotal'] ??
+              (producto['precio'] * producto['cantidadSeleccionada']));
     });
   }
 
@@ -75,7 +80,6 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
       initialDate: _fechaSeleccionada ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      helpText: 'Selecciona la fecha de la venta',
     );
     if (fecha != null) {
       setState(() {
@@ -89,16 +93,6 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('El nombre de la venta es obligatorio'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    if (_fechaSeleccionada == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Debes seleccionar una fecha para la venta'),
           backgroundColor: Colors.red,
         ),
       );
@@ -133,14 +127,14 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
       final user = _auth.currentUser;
       if (user == null) throw Exception('Usuario no autenticado');
 
-      DateTime now = DateTime.now();
+      DateTime fechaVenta = _fechaSeleccionada ?? DateTime.now();
       DateTime fechaConHora = DateTime(
-        _fechaSeleccionada!.year,
-        _fechaSeleccionada!.month,
-        _fechaSeleccionada!.day,
-        now.hour,
-        now.minute,
-        now.second,
+        fechaVenta.year,
+        fechaVenta.month,
+        fechaVenta.day,
+        DateTime.now().hour,
+        DateTime.now().minute,
+        DateTime.now().second,
       );
 
       final ventaRef = await _firestore.collection('ventas').add({
@@ -159,6 +153,7 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
             'nombre': producto['nombre'],
             'precio': producto['precio'],
             'cantidad': producto['cantidadSeleccionada'],
+            'subtotal': producto['precio'] * producto['cantidadSeleccionada'],
           };
         }).toList(),
       });
@@ -183,7 +178,7 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
       );
 
       widget.onVentaFinalizada();
-      Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -241,80 +236,83 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
         title: const Text('Resumen de Venta'),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          // Sección de formulario
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                // Campo de nombre de venta
-                TextField(
-                  controller: _nombreVentaController,
-                  decoration: InputDecoration(
-                    labelText: 'Nombre de la venta',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Column(
+          children: [
+            // Sección de formulario
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Column(
+                children: [
+                  // Campo de nombre de venta
+                  TextField(
+                    controller: _nombreVentaController,
+                    decoration: InputDecoration(
+                      labelText: 'Nombre de la venta',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 16),
 
-                // Selector de cliente
-                ClienteSelector(
-                  clienteNombre: _clienteSeleccionadoNombre,
-                  onSeleccionar: _seleccionarCliente,
-                  onEliminar: () {
-                    setState(() {
-                      _clienteSeleccionadoId = null;
-                      _clienteSeleccionadoNombre = null;
-                    });
-                  },
-                ),
-                const SizedBox(height: 8),
+                  // Selector de cliente
+                  ClienteSelector(
+                    clienteNombre: _clienteSeleccionadoNombre,
+                    onSeleccionar: _seleccionarCliente,
+                    onEliminar: () {
+                      setState(() {
+                        _clienteSeleccionadoId = null;
+                        _clienteSeleccionadoNombre = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
 
-                // Selector de fecha
-                FechaSelector(
-                  fecha: _fechaSeleccionada,
-                  onSeleccionar: () => _seleccionarFecha(context),
-                ),
-                const SizedBox(height: 8),
+                  // Selector de fecha
+                  FechaSelector(
+                    fecha: _fechaSeleccionada,
+                    onSeleccionar: () => _seleccionarFecha(context),
+                  ),
+                  const SizedBox(height: 16),
 
-                // Selector de proveedor
-                ProveedorSelector(
-                  proveedorSeleccionado: _proveedorSeleccionado,
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _proveedorSeleccionado = newValue;
-                    });
-                  },
-                ),
-                const SizedBox(height: 8),
+                  // Selector de proveedor
+                  ProveedorSelector(
+                    proveedorSeleccionado: _proveedorSeleccionado,
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _proveedorSeleccionado = newValue;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
 
-                // Selector de tipo de pago
-                PagoSelector(
-                  tipoPagoSeleccionado: _tipoPagoSeleccionado,
-                  tiposPago: _tiposPago,
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _tipoPagoSeleccionado = newValue;
-                    });
-                  },
-                ),
-              ],
+                  // Selector de tipo de pago
+                  PagoSelector(
+                    tipoPagoSeleccionado: _tipoPagoSeleccionado,
+                    tiposPago: _tiposPago,
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _tipoPagoSeleccionado = newValue;
+                      });
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          // Lista de productos
-          Expanded(
-            child: _productosSeleccionados.isEmpty
-                ? const Center(child: Text('No hay productos seleccionados'))
-                : ListView.builder(
-                    itemCount: _productosSeleccionados.length,
-                    itemBuilder: (context, index) {
-                      final producto = _productosSeleccionados[index];
+            // Lista de productos
+            _productosSeleccionados.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text('No hay productos seleccionados'),
+                  )
+                : Column(
+                    children: _productosSeleccionados.map((producto) {
+                      final index = _productosSeleccionados.indexOf(producto);
                       return ProductoItem(
                         producto: producto,
                         onIncrement: () {
@@ -347,13 +345,19 @@ class _DetalleVentaScreenState extends State<DetalleVentaScreen> {
                         },
                         onEliminar: () => _eliminarProducto(index),
                       );
-                    },
+                    }).toList(),
                   ),
-          ),
 
-          // Panel de total y botón
-          TotalPanel(total: _totalVenta, onFinalizar: _finalizarVenta),
-        ],
+            // Panel de total y botón
+            TotalPanel(
+              total: _totalVenta,
+              onFinalizar: _finalizarVenta,
+              habilitado:
+                  _nombreVentaController.text.isNotEmpty &&
+                  _tipoPagoSeleccionado != null,
+            ),
+          ],
+        ),
       ),
     );
   }

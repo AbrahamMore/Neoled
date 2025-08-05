@@ -54,31 +54,31 @@ class _GastosScreenState extends State<GastosScreen> {
   }
 
   Future<void> _mostrarSeleccionProductos() async {
-    final productos = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SeleccionarProductosGastosScreen(
           productosSeleccionados: _productosSeleccionados,
           onProductosSeleccionados: (productos) {
+            setState(() {
+              _productosSeleccionados = List<Map<String, dynamic>>.from(
+                productos,
+              );
+              _calcularTotalProductos();
+            });
             return productos;
           },
         ),
       ),
     );
-
-    if (productos != null) {
-      setState(() {
-        _productosSeleccionados = List<Map<String, dynamic>>.from(productos);
-        _calcularTotalProductos();
-      });
-    }
   }
 
   void _calcularTotalProductos() {
     double total = 0.0;
     for (var producto in _productosSeleccionados) {
       total +=
-          (producto['precio'] ?? 0) * (producto['cantidadSeleccionada'] ?? 1);
+          (producto['costoUnitario'] ?? producto['costo'] ?? 0) *
+          (producto['cantidadComprada'] ?? 1);
     }
     setState(() {
       _valorTotalProductos = total;
@@ -93,12 +93,11 @@ class _GastosScreenState extends State<GastosScreen> {
       context: context,
       initialDate: _fechaSeleccionada ?? DateTime.now(),
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(), // Esto evita seleccionar fechas futuras
+      lastDate: DateTime.now(),
       helpText: 'Selecciona la fecha del gasto',
     );
 
     if (fecha != null) {
-      // Validación adicional por si acaso (aunque el date picker ya no permite futuras)
       if (fecha.isAfter(DateTime.now())) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -123,17 +122,15 @@ class _GastosScreenState extends State<GastosScreen> {
     if (user == null) return;
 
     try {
-      // Obtener el rol del usuario (si existe)
       final userDoc = await FirebaseFirestore.instance
           .collection('usuarios')
           .doc(user.uid)
           .get();
 
-      // Si no existe el campo 'rol', se usará 'usuario' por defecto
       final rol = userDoc.data()?['rol']?.toString() ?? 'usuario';
 
       setState(() {
-        _rolUsuario = rol; // Actualizamos el estado si lo necesitamos después
+        _rolUsuario = rol;
       });
 
       DateTime fechaActual = DateTime.now();
@@ -160,7 +157,7 @@ class _GastosScreenState extends State<GastosScreen> {
         'usuarioId': user.uid,
         'usuarioNombre': user.displayName ?? user.email,
         'fecha': Timestamp.fromDate(fechaCombinada),
-        'rolUsuario': rol, // Añadimos el rol al documento
+        'rolUsuario': rol,
       };
 
       if (_proveedorSeleccionado != null) {
@@ -169,7 +166,17 @@ class _GastosScreenState extends State<GastosScreen> {
 
       if (_categoriaSeleccionada == 'Compra de productos e insumos' &&
           _productosSeleccionados.isNotEmpty) {
-        gastoData['productos'] = _productosSeleccionados;
+        gastoData['productos'] = _productosSeleccionados.map((producto) {
+          return {
+            'id': producto['id'],
+            'nombre': producto['nombre'],
+            'cantidadComprada': producto['cantidadComprada'],
+            'costoUnitario': producto['costoUnitario'] ?? producto['costo'],
+            'subtotal':
+                (producto['costoUnitario'] ?? producto['costo']) *
+                (producto['cantidadComprada'] ?? 1),
+          };
+        }).toList();
 
         final batch = FirebaseFirestore.instance.batch();
 
@@ -179,9 +186,7 @@ class _GastosScreenState extends State<GastosScreen> {
               .doc(producto['id']);
 
           batch.update(productoRef, {
-            'cantidad': FieldValue.increment(
-              producto['cantidadSeleccionada'] ?? 1,
-            ),
+            'cantidad': FieldValue.increment(producto['cantidadComprada'] ?? 1),
           });
         }
 
@@ -192,13 +197,12 @@ class _GastosScreenState extends State<GastosScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Gasto registrado exitosamente'),
+          const SnackBar(
+            content: Text('Gasto registrado exitosamente'),
             backgroundColor: Colors.green,
           ),
         );
 
-        // Limpiar el formulario
         _formKey.currentState?.reset();
         _nombreController.clear();
         _valorController.clear();
@@ -327,7 +331,7 @@ class _GastosScreenState extends State<GastosScreen> {
                       ),
                       child: const Text(
                         'Seleccionar Productos',
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(color: AppColors.secondary),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -351,16 +355,15 @@ class _GastosScreenState extends State<GastosScreen> {
                             return ListTile(
                               title: Text(producto['nombre'] ?? 'Sin nombre'),
                               subtitle: Text(
-                                'Cantidad: ${producto['cantidadSeleccionada'] ?? 1} - Precio: \$${(producto['precio'] ?? 0).toStringAsFixed(2)}',
+                                'Cantidad: ${producto['cantidadComprada'] ?? 1} - Costo: \$${(producto['costoUnitario'] ?? producto['costo'] ?? 0).toStringAsFixed(2)}',
                               ),
                               trailing: Text(
-                                '\$${((producto['precio'] ?? 0) * (producto['cantidadSeleccionada'] ?? 1)).toStringAsFixed(2)}',
+                                '\$${((producto['costoUnitario'] ?? producto['costo'] ?? 0) * (producto['cantidadComprada'] ?? 1)).toStringAsFixed(2)}',
                               ),
                             );
                           }).toList(),
                         ],
                       ),
-
                     const SizedBox(height: 16),
                   ],
                 ),

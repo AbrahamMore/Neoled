@@ -23,102 +23,164 @@ class _SeleccionarProductosGastosScreenState
   final TextEditingController _busquedaController = TextEditingController();
   String _busqueda = '';
   late List<Map<String, dynamic>> _productosSeleccionadosInternos;
-  final Map<String, TextEditingController> _controladores = {};
-  final Map<String, FocusNode> _focusNodes = {};
+  double _total = 0.0;
+  bool _datosConfirmados = false;
+  bool _hayCambiosSinGuardar = false;
+
+  final Map<String, TextEditingController> _cantidadControllers = {};
+  final Map<String, TextEditingController> _costoControllers = {};
+  final Map<String, FocusNode> _cantidadFocusNodes = {};
+  final Map<String, FocusNode> _costoFocusNodes = {};
 
   @override
   void initState() {
     super.initState();
     _productosSeleccionadosInternos = List.from(widget.productosSeleccionados);
     _inicializarControladores();
+    _calcularTotalManual();
+    _datosConfirmados = _productosSeleccionadosInternos.isNotEmpty;
   }
 
   void _inicializarControladores() {
     for (var producto in _productosSeleccionadosInternos) {
       final id = producto['id'];
-      _controladores[id] = TextEditingController(
-        text: producto['cantidadSeleccionada'].toString(),
+      _cantidadControllers[id] = TextEditingController(
+        text: producto['cantidadComprada'].toString(),
       );
-      _focusNodes[id] = FocusNode();
+      _costoControllers[id] = TextEditingController(
+        text: (producto['costoUnitario'] ?? producto['costo'] ?? 0).toString(),
+      );
+      _cantidadFocusNodes[id] = FocusNode();
+      _costoFocusNodes[id] = FocusNode();
     }
   }
 
   @override
   void dispose() {
     _busquedaController.dispose();
-    for (var controller in _controladores.values) {
+    for (var controller in _cantidadControllers.values) {
       controller.dispose();
     }
-    for (var focusNode in _focusNodes.values) {
-      focusNode.dispose();
+    for (var controller in _costoControllers.values) {
+      controller.dispose();
+    }
+    for (var node in _cantidadFocusNodes.values) {
+      node.dispose();
+    }
+    for (var node in _costoFocusNodes.values) {
+      node.dispose();
     }
     super.dispose();
   }
 
-  void _actualizarCantidad(
-    String productoId,
-    String valorTexto,
-    Map<String, dynamic> productoData,
-  ) {
-    // Si el campo está vacío, mostramos '0' como placeholder
-    if (valorTexto.isEmpty) {
-      _controladores[productoId]?.text = '0';
-      return;
-    }
-
-    final cantidad = int.tryParse(valorTexto) ?? 0;
-    final productoIndex = _productosSeleccionadosInternos.indexWhere(
-      (p) => p['id'] == productoId,
-    );
-
-    // Eliminamos la validación de stock
-    if (cantidad <= 0) {
-      if (productoIndex != -1) {
-        setState(() {
-          _productosSeleccionadosInternos.removeAt(productoIndex);
-          _controladores[productoId]?.text = '0';
-          _focusNodes[productoId]?.unfocus();
-        });
-      }
-      return;
-    }
-
-    if (productoIndex != -1) {
+  void _manejarCambioEnProducto() {
+    if (!_hayCambiosSinGuardar) {
       setState(() {
-        _productosSeleccionadosInternos[productoIndex]['cantidadSeleccionada'] =
-            cantidad;
-      });
-    } else {
-      setState(() {
-        _productosSeleccionadosInternos.add({
-          ...productoData,
-          'id': productoId,
-          'cantidadSeleccionada': cantidad,
-        });
+        _hayCambiosSinGuardar = true;
+        _datosConfirmados = false;
       });
     }
   }
 
+  void _actualizarTodosLosProductosSeleccionados(
+    List<DocumentSnapshot> productosDocs,
+  ) {
+    setState(() {
+      for (var productoDoc in productosDocs) {
+        final productoId = productoDoc.id;
+        final data = productoDoc.data() as Map<String, dynamic>;
+
+        final cantidadText = _cantidadControllers[productoId]?.text ?? '0';
+        final costoText = _costoControllers[productoId]?.text ?? '0.0';
+
+        final cantidad = int.tryParse(cantidadText) ?? 0;
+        final costo =
+            double.tryParse(costoText) ?? data['costo']?.toDouble() ?? 0.0;
+
+        if (cantidad <= 0) {
+          _eliminarProducto(productoId);
+          continue;
+        }
+
+        final productoActualizado = {
+          ...data,
+          'id': productoId,
+          'cantidadComprada': cantidad,
+          'costoUnitario': costo,
+          'subtotal': cantidad * costo,
+        };
+
+        final productoIndex = _productosSeleccionadosInternos.indexWhere(
+          (p) => p['id'] == productoId,
+        );
+
+        if (productoIndex != -1) {
+          _productosSeleccionadosInternos[productoIndex] = productoActualizado;
+        } else {
+          _productosSeleccionadosInternos.add(productoActualizado);
+        }
+      }
+
+      _hayCambiosSinGuardar = false;
+      _datosConfirmados = true;
+      _calcularTotalManual();
+      widget.onProductosSeleccionados(_productosSeleccionadosInternos);
+    });
+  }
+
+  void _calcularTotalManual() {
+    _total = _productosSeleccionadosInternos.fold(
+      0.0,
+      (total, producto) => total + (producto['subtotal'] ?? 0.0),
+    );
+  }
+
   void _eliminarProducto(String productoId) {
+    final productoEliminado = _productosSeleccionadosInternos.firstWhere(
+      (p) => p['id'] == productoId,
+      orElse: () => {},
+    );
+
     setState(() {
       _productosSeleccionadosInternos.removeWhere(
         (producto) => producto['id'] == productoId,
       );
-      _controladores[productoId]?.text = '0'; // Volvemos al placeholder
-      _focusNodes[productoId]?.unfocus(); // Quitamos el foco
+
+      _cantidadControllers[productoId]?.text = '0';
+
+      if (productoEliminado.isNotEmpty) {
+        _costoControllers[productoId]?.text =
+            (productoEliminado['costo'] ??
+                    productoEliminado['costoUnitario'] ??
+                    '0')
+                .toString();
+      } else {
+        _costoControllers[productoId]?.text =
+            _costoControllers[productoId]?.text ?? '0';
+      }
+
+      _hayCambiosSinGuardar = true;
+      _datosConfirmados = false;
+      _calcularTotalManual();
+      widget.onProductosSeleccionados(_productosSeleccionadosInternos);
     });
   }
 
   void _guardarSeleccion() {
-    // Forzar actualización de todos los campos editados
-    for (var entry in _controladores.entries) {
-      final producto = _productosSeleccionadosInternos.firstWhere(
-        (p) => p['id'] == entry.key,
-        orElse: () => {},
+    if (_productosSeleccionadosInternos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona al menos un producto')),
       );
-      if (producto.isNotEmpty) {
-        _actualizarCantidad(entry.key, entry.value.text, producto);
-      }
+      return;
+    }
+
+    if (_hayCambiosSinGuardar) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor actualiza los cambios primero'),
+        ),
+      );
+      return;
     }
 
     widget.onProductosSeleccionados(_productosSeleccionadosInternos);
@@ -133,77 +195,143 @@ class _SeleccionarProductosGastosScreenState
       orElse: () => {},
     );
 
-    final stockDisponible = data['cantidad'] ?? 0;
-
-    // Inicializamos el controlador con '0' como placeholder si no hay cantidad seleccionada
-    _controladores.putIfAbsent(
+    _cantidadControllers.putIfAbsent(
       productoId,
       () => TextEditingController(
         text: productoSeleccionado.isNotEmpty
-            ? productoSeleccionado['cantidadSeleccionada'].toString()
+            ? productoSeleccionado['cantidadComprada'].toString()
             : '0',
       ),
     );
 
-    _focusNodes.putIfAbsent(productoId, () => FocusNode());
+    _costoControllers.putIfAbsent(
+      productoId,
+      () => TextEditingController(
+        text: productoSeleccionado.isNotEmpty
+            ? productoSeleccionado['costoUnitario'].toString()
+            : data['costo']?.toString() ?? '0.0',
+      ),
+    );
+
+    _cantidadFocusNodes.putIfAbsent(productoId, () => FocusNode());
+    _costoFocusNodes.putIfAbsent(productoId, () => FocusNode());
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: ListTile(
-        title: Text(data['nombre'] ?? 'Sin nombre'),
-        subtitle: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Precio: \$${(data['precio'] ?? 0).toStringAsFixed(2)}'),
-            Text(
-              'Stock: $stockDisponible',
-              style: TextStyle(
-                color: stockDisponible <= 0 ? Colors.red : Colors.grey,
-              ),
-            ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (productoSeleccionado.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                tooltip: 'Eliminar producto',
-                onPressed: () => _eliminarProducto(productoId),
-              ),
-            SizedBox(
-              width: 60,
-              child: TextField(
-                controller: _controladores[productoId],
-                focusNode: _focusNodes[productoId],
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  isDense: true,
-                  contentPadding: const EdgeInsets.all(8),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data['nombre'] ?? 'Sin nombre',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Stock: ${data['cantidad'] ?? 0}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ],
                   ),
-                  hintText: '0',
                 ),
-                onChanged: (value) {
-                  if (value.isNotEmpty) {
-                    _actualizarCantidad(productoId, value, data);
-                  }
-                },
-                onTap: () {
-                  if (_controladores[productoId]?.text == '0') {
-                    _controladores[productoId]?.clear();
-                  }
-                },
-                // Elimina onEditingComplete para evitar cierre no deseado
-                onSubmitted: (value) {
-                  _actualizarCantidad(productoId, value, data);
-                  _focusNodes[productoId]?.unfocus();
-                },
-              ),
+                if (productoSeleccionado.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _eliminarProducto(productoId),
+                  ),
+              ],
             ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _cantidadControllers[productoId],
+                    focusNode: _cantidadFocusNodes[productoId],
+                    keyboardType: TextInputType.number,
+                    onTap: () {
+                      if (_cantidadControllers[productoId]?.text == '0') {
+                        _cantidadControllers[productoId]?.clear();
+                      }
+                      _cantidadControllers[productoId]?.selection =
+                          TextSelection(
+                            baseOffset: 0,
+                            extentOffset:
+                                _cantidadControllers[productoId]!.text.length,
+                          );
+                    },
+                    onChanged: (value) => _manejarCambioEnProducto(),
+                    decoration: const InputDecoration(
+                      labelText: 'Cantidad',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 10,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _costoControllers[productoId],
+                    focusNode: _costoFocusNodes[productoId],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onTap: () {
+                      if (_costoControllers[productoId]?.text == '0' ||
+                          _costoControllers[productoId]?.text == '0.0') {
+                        _costoControllers[productoId]?.clear();
+                      }
+                      _costoControllers[productoId]?.selection = TextSelection(
+                        baseOffset: 0,
+                        extentOffset:
+                            _costoControllers[productoId]!.text.length,
+                      );
+                    },
+                    onChanged: (value) => _manejarCambioEnProducto(),
+                    decoration: const InputDecoration(
+                      labelText: 'Costo unitario',
+                      prefixText: '\$ ',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 10,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (productoSeleccionado.isNotEmpty &&
+                productoSeleccionado['subtotal'] != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    'Subtotal: \$${productoSeleccionado['subtotal'].toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -213,30 +341,62 @@ class _SeleccionarProductosGastosScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('Seleccionar Productos'),
+        title: Row(
+          children: [
+            const Text('Seleccionar Productos'),
+            if (_hayCambiosSinGuardar &&
+                _productosSeleccionadosInternos.isNotEmpty)
+              const Padding(padding: EdgeInsets.only(left: 8.0)),
+          ],
+        ),
         backgroundColor: AppColors.primary,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.check, color: AppColors.secondary),
-            tooltip: 'Confirmar selección',
-            onPressed: _guardarSeleccion,
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.check, color: Colors.black),
+                tooltip: 'Actualizar totales',
+                onPressed: () {
+                  _firestore.collection('inventario').get().then((snapshot) {
+                    _actualizarTodosLosProductosSeleccionados(snapshot.docs);
+                  });
+                },
+              ),
+              if (_hayCambiosSinGuardar &&
+                  _productosSeleccionadosInternos.isNotEmpty)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 12,
+                      minHeight: 12,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(12.0),
             child: TextField(
               controller: _busquedaController,
               decoration: InputDecoration(
                 hintText: 'Buscar producto...',
-                hintStyle: const TextStyle(color: Colors.yellow),
-                prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                prefixIcon: const Icon(Icons.search),
                 suffixIcon: _busqueda.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, color: AppColors.primary),
+                        icon: const Icon(Icons.clear),
                         onPressed: () {
                           setState(() {
                             _busqueda = '';
@@ -245,41 +405,32 @@ class _SeleccionarProductosGastosScreenState
                         },
                       )
                     : null,
-                filled: true,
-                fillColor: AppColors.secondary,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              onChanged: (value) =>
-                  setState(() => _busqueda = value.toLowerCase()),
+              onChanged: (value) {
+                setState(() {
+                  _busqueda = value.toLowerCase();
+                });
+              },
             ),
           ),
           if (_productosSeleccionadosInternos.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Productos seleccionados: ${_productosSeleccionadosInternos.length}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Total: \$${_total.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _productosSeleccionadosInternos.clear();
-                        _controladores.forEach((key, controller) {
-                          controller.text = '0'; // Resetear a placeholder
-                        });
-                      });
-                    },
-                    child: const Text(
-                      'Limpiar todo',
-                      style: TextStyle(color: Colors.red),
+                      fontSize: 16,
                     ),
                   ),
                 ],
@@ -308,6 +459,7 @@ class _SeleccionarProductosGastosScreenState
                 }).toList();
 
                 return ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 80),
                   itemCount: productos.length,
                   itemBuilder: (context, index) =>
                       _buildProductoItem(productos[index]),
@@ -316,6 +468,30 @@ class _SeleccionarProductosGastosScreenState
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.all(16),
+        child: SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton.icon(
+            onPressed:
+                _datosConfirmados && _productosSeleccionadosInternos.isNotEmpty
+                ? _guardarSeleccion
+                : null,
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('Confirmar', style: TextStyle(fontSize: 16)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.secondary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              disabledBackgroundColor: Colors.grey[400],
+            ),
+          ),
+        ),
       ),
     );
   }

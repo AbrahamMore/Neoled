@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
 import 'package:intl/intl.dart';
+import 'package:syncfusion_flutter_datepicker/datepicker.dart'; // Para el selector de fechas
 
 class AlmacenScreen extends StatefulWidget {
   const AlmacenScreen({super.key});
@@ -19,6 +20,8 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
   bool _showHistory = false;
   List<String> _productosSeleccionados = [];
   Map<String, int> _cantidadesPorProducto = {};
+  DateTime? _fechaFiltro;
+  bool _mostrarResumenDiario = false;
 
   @override
   void initState() {
@@ -96,7 +99,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Selecciona al menos un producto'),
-          backgroundColor: Colors.red, // Color rojo para advertencia
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -106,13 +109,12 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Selecciona un usuario'),
-          backgroundColor: Colors.red, // Color rojo para advertencia
+          backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    // Validar cantidades
     for (var productoId in _productosSeleccionados) {
       final producto = _productos.firstWhere((p) => p['id'] == productoId);
       final cantidad = _cantidadesPorProducto[productoId] ?? 1;
@@ -121,7 +123,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Cantidad inválida para ${producto['nombre']}'),
-            backgroundColor: Colors.red, // Color rojo para advertencia
+            backgroundColor: Colors.red,
           ),
         );
         return;
@@ -133,7 +135,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
             content: Text(
               'No hay suficiente stock de ${producto['nombre']}. Disponible: ${producto['cantidad']}',
             ),
-            backgroundColor: Colors.red, // Color rojo para advertencia
+            backgroundColor: Colors.red,
           ),
         );
         return;
@@ -144,12 +146,10 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
     final ahora = Timestamp.now();
 
     try {
-      // Registrar cada movimiento y actualizar inventario
       for (var productoId in _productosSeleccionados) {
         final producto = _productos.firstWhere((p) => p['id'] == productoId);
         final cantidad = _cantidadesPorProducto[productoId] ?? 1;
 
-        // Registrar movimiento
         final movimientoRef = FirebaseFirestore.instance
             .collection('almacen')
             .doc();
@@ -162,7 +162,6 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
           'tipo': 'salida',
         });
 
-        // Actualizar inventario
         final inventarioRef = FirebaseFirestore.instance
             .collection('inventario')
             .doc(productoId);
@@ -176,11 +175,10 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Salidas registradas correctamente'),
-          backgroundColor: Colors.green, // Color verde para éxito
+          backgroundColor: Colors.green,
         ),
       );
 
-      // Limpiar y recargar
       setState(() {
         _productosSeleccionados.clear();
         _cantidadesPorProducto.clear();
@@ -190,10 +188,122 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al registrar: $e'),
-          backgroundColor: Colors.red, // Color rojo para error
+          backgroundColor: Colors.red,
         ),
       );
     }
+  }
+
+  void _mostrarSelectorFecha() async {
+    final DateTime? fechaSeleccionada = await showDialog<DateTime>(
+      context: context,
+      builder: (context) {
+        DateTime tempFecha = _fechaFiltro ?? DateTime.now();
+        return AlertDialog(
+          title: Text('Seleccionar fecha'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SfDateRangePicker(
+              initialSelectedDate: tempFecha,
+              maxDate: DateTime.now(),
+              selectionMode: DateRangePickerSelectionMode.single,
+              onSelectionChanged: (DateRangePickerSelectionChangedArgs args) {
+                tempFecha = args.value as DateTime;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, tempFecha),
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (fechaSeleccionada != null) {
+      setState(() {
+        _fechaFiltro = fechaSeleccionada;
+        _mostrarResumenDiario = true;
+      });
+    }
+  }
+
+  void _limpiarFiltroFecha() {
+    setState(() {
+      _fechaFiltro = null;
+      _mostrarResumenDiario = false;
+    });
+  }
+
+  Widget _buildResumenDiario(List<QueryDocumentSnapshot> movimientos) {
+    // Agrupar movimientos por producto
+    Map<String, int> resumen = {};
+    int totalPiezas = 0;
+
+    for (var movimiento in movimientos) {
+      final data = movimiento.data() as Map<String, dynamic>;
+      final nombreProducto = data['producto_nombre'];
+      final cantidad = data['cantidad'] as int;
+
+      resumen[nombreProducto] = (resumen[nombreProducto] ?? 0) + cantidad;
+      totalPiezas += cantidad;
+    }
+
+    // Convertir a lista y ordenar por cantidad (de mayor a menor)
+    var items = resumen.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Resumen del ${DateFormat('dd/MM/yyyy').format(_fechaFiltro!)}',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: Icon(Icons.close),
+                onPressed: _limpiarFiltroFecha,
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Total de piezas: $totalPiezas',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.rojo,
+              fontSize: 19,
+            ),
+          ),
+        ),
+        SizedBox(height: 5),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return ListTile(
+              title: Text(item.key),
+              trailing: Text(item.value.toString()),
+            );
+          },
+        ),
+      ],
+    );
   }
 
   @override
@@ -202,22 +312,34 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         title: Text(
-          _showHistory ? 'Historial de Almacén' : 'Registrar Salidas',
-          style: const TextStyle(color: AppColors.secondary),
+          _showHistory
+              ? _fechaFiltro != null
+                    ? 'Historial ${DateFormat('dd/MM').format(_fechaFiltro!)}'
+                    : 'Historial de Almacén'
+              : 'Registrar Salidas',
+          style: TextStyle(color: AppColors.secondary),
         ),
         actions: [
-          IconButton(
-            icon: Icon(_showHistory ? Icons.add : Icons.history),
-            onPressed: () {
-              setState(() {
-                _showHistory = !_showHistory;
-                if (!_showHistory) {
-                  _productosSeleccionados.clear();
-                  _cantidadesPorProducto.clear();
-                }
-              });
-            },
-          ),
+          if (_showHistory)
+            IconButton(
+              icon: Icon(Icons.calendar_today),
+              onPressed: _mostrarSelectorFecha,
+            )
+          else
+            IconButton(
+              icon: Icon(Icons.history),
+              onPressed: () {
+                setState(() {
+                  _showHistory = !_showHistory;
+                  _fechaFiltro = null;
+                  _mostrarResumenDiario = false;
+                  if (!_showHistory) {
+                    _productosSeleccionados.clear();
+                    _cantidadesPorProducto.clear();
+                  }
+                });
+              },
+            ),
         ],
       ),
       body: _showHistory ? _buildHistorial() : _buildRegistroSalida(),
@@ -226,15 +348,14 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
 
   Widget _buildRegistroSalida() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: EdgeInsets.all(16.0),
       child: Column(
         children: [
-          // Buscador de productos
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
               labelText: 'Buscar producto',
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -242,9 +363,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
               fillColor: AppColors.accent,
             ),
           ),
-          const SizedBox(height: 20),
-
-          // Selección de usuario
+          SizedBox(height: 20),
           DropdownButtonFormField<String>(
             value: _usuarioSeleccionado.isNotEmpty
                 ? _usuarioSeleccionado
@@ -254,7 +373,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              prefixIcon: const Icon(Icons.person),
+              prefixIcon: Icon(Icons.person),
               filled: true,
               fillColor: AppColors.accent,
             ),
@@ -270,33 +389,29 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
               });
             },
           ),
-          const SizedBox(height: 20),
-
-          // Botón para registrar salida
+          SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _registrarSalidas,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Registrar Salidas',
                 style: TextStyle(fontSize: 16, color: AppColors.secondary),
               ),
             ),
           ),
-          const SizedBox(height: 20),
-
-          // Lista de productos filtrados con selección múltiple
+          SizedBox(height: 20),
           if (_productosFiltrados.isNotEmpty)
             ListView.builder(
               shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+              physics: NeverScrollableScrollPhysics(),
               itemCount: _productosFiltrados.length,
               itemBuilder: (context, index) {
                 final producto = _productosFiltrados[index];
@@ -306,11 +421,11 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
                 final cantidad = _cantidadesPorProducto[producto['id']] ?? 1;
 
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
+                  margin: EdgeInsets.only(bottom: 8),
                   child: InkWell(
                     onTap: () => _toggleSeleccionProducto(producto['id']),
                     child: Padding(
-                      padding: const EdgeInsets.all(12.0),
+                      padding: EdgeInsets.all(12.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -327,7 +442,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
                                   children: [
                                     Text(
                                       producto['nombre'],
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -341,10 +456,10 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
                             ],
                           ),
                           if (isSelected) ...[
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8),
                             Row(
                               children: [
-                                const Text('Cantidad: '),
+                                Text('Cantidad: '),
                                 Expanded(
                                   child: TextFormField(
                                     initialValue: cantidad.toString(),
@@ -353,10 +468,9 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                          ),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
                                     ),
                                     onChanged: (value) {
                                       final nuevaCantidad =
@@ -395,21 +509,55 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(child: CircularProgressIndicator());
         }
 
-        final movimientos = snapshot.data!.docs;
+        final todosMovimientos = snapshot.data!.docs;
+
+        // Filtrar por fecha si hay filtro aplicado
+        final movimientosFiltrados = _fechaFiltro == null
+            ? todosMovimientos
+            : todosMovimientos.where((doc) {
+                final fechaMovimiento = (doc['fecha'] as Timestamp).toDate();
+                return fechaMovimiento.year == _fechaFiltro!.year &&
+                    fechaMovimiento.month == _fechaFiltro!.month &&
+                    fechaMovimiento.day == _fechaFiltro!.day;
+              }).toList();
+
+        if (_mostrarResumenDiario && _fechaFiltro != null) {
+          return _buildResumenDiario(movimientosFiltrados);
+        }
+
+        if (movimientosFiltrados.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  _fechaFiltro == null
+                      ? 'No hay movimientos registrados'
+                      : 'No hay movimientos para la fecha seleccionada',
+                ),
+                if (_fechaFiltro != null)
+                  TextButton(
+                    onPressed: _limpiarFiltroFecha,
+                    child: Text('Limpiar filtro'),
+                  ),
+              ],
+            ),
+          );
+        }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(16.0),
-          itemCount: movimientos.length,
+          padding: EdgeInsets.all(16.0),
+          itemCount: movimientosFiltrados.length,
           itemBuilder: (context, index) {
             final movimiento =
-                movimientos[index].data() as Map<String, dynamic>;
+                movimientosFiltrados[index].data() as Map<String, dynamic>;
             final fecha = (movimiento['fecha'] as Timestamp).toDate();
 
             return Card(
-              margin: const EdgeInsets.only(bottom: 16),
+              margin: EdgeInsets.only(bottom: 16),
               child: ListTile(
                 title: Text(movimiento['producto_nombre']),
                 subtitle: Column(
@@ -420,7 +568,6 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
                     Text(DateFormat('dd/MM/yyyy HH:mm').format(fecha)),
                   ],
                 ),
-                // Se ha eliminado el icono de flecha
               ),
             );
           },

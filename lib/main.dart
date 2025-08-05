@@ -30,7 +30,6 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const Register(),
         '/main_navigation': (context) => const MainNavigation(),
         '/welcome': (context) => const WelcomeScreen(),
-        // Agrega aquí más rutas si tienes otras pantallas
       },
     );
   }

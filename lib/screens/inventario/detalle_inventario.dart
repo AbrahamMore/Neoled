@@ -15,6 +15,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   late TextEditingController _nombreController;
   late TextEditingController _cantidadController;
   late TextEditingController _precioController;
+  late TextEditingController _costoController;
   late TextEditingController _descripcionController;
 
   @override
@@ -27,6 +28,9 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     _precioController = TextEditingController(
       text: widget.producto['precio'].toString(),
     );
+    _costoController = TextEditingController(
+      text: widget.producto['costo'].toString(),
+    );
     _descripcionController = TextEditingController(
       text: widget.producto['descripcion'],
     );
@@ -37,6 +41,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     _nombreController.dispose();
     _cantidadController.dispose();
     _precioController.dispose();
+    _costoController.dispose();
     _descripcionController.dispose();
     super.dispose();
   }
@@ -49,6 +54,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
           'nombre': _nombreController.text,
           'cantidad': int.tryParse(_cantidadController.text) ?? 0,
           'precio': double.tryParse(_precioController.text) ?? 0,
+          'costo': double.tryParse(_costoController.text) ?? 0,
           'descripcion': _descripcionController.text,
         });
 
@@ -77,7 +83,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false, // ← Mantiene el fondo fijo
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text(
           'Detalle del Producto',
@@ -88,12 +94,9 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
       ),
       body: Stack(
         children: [
-          // Fondo fijo
           Positioned.fill(
             child: Image.asset('assets/images/planeta.png', fit: BoxFit.cover),
           ),
-
-          // Scroll con altura mínima para evitar espacio en blanco
           LayoutBuilder(
             builder: (context, constraints) {
               return SingleChildScrollView(
@@ -103,7 +106,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                   child: IntrinsicHeight(
                     child: Column(
                       children: [
-                        const SizedBox(height: 30), // espacio bajo el AppBar
+                        const SizedBox(height: 30),
 
                         _buildCampo(
                           'Nombre',
@@ -129,6 +132,14 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                         const SizedBox(height: 16),
 
                         _buildCampo(
+                          'Costo (\$)',
+                          _costoController,
+                          Icons.money_off,
+                          isNumber: true,
+                        ),
+                        const SizedBox(height: 16),
+
+                        _buildCampo(
                           'Descripción',
                           _descripcionController,
                           Icons.description,
@@ -136,7 +147,6 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Botón Guardar
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -159,7 +169,6 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Botón Eliminar
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(

@@ -203,7 +203,12 @@ class TotalPanel extends StatelessWidget {
   final double total;
   final VoidCallback onFinalizar;
 
-  const TotalPanel({super.key, required this.total, required this.onFinalizar});
+  const TotalPanel({
+    super.key,
+    required this.total,
+    required this.onFinalizar,
+    required bool habilitado,
+  });
 
   @override
   Widget build(BuildContext context) {

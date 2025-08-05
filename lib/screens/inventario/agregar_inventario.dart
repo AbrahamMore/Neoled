@@ -1,3 +1,4 @@
+// ... (importaciones)
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
@@ -16,6 +17,7 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
   final TextEditingController _nombreController = TextEditingController();
   final TextEditingController _cantidadController = TextEditingController();
   final TextEditingController _precioController = TextEditingController();
+  final TextEditingController _costoController = TextEditingController();
   final TextEditingController _descripcionController = TextEditingController();
 
   @override
@@ -24,16 +26,20 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
     _nombreController.dispose();
     _cantidadController.dispose();
     _precioController.dispose();
+    _costoController.dispose();
     _descripcionController.dispose();
     super.dispose();
   }
 
   void _guardarProducto() async {
+    if (!_formKey.currentState!.validate()) return;
+
     final producto = {
       'codigo_barras': _codigoBarrasController.text,
       'nombre': _nombreController.text,
       'cantidad': int.parse(_cantidadController.text),
       'precio': double.parse(_precioController.text),
+      'costo': double.parse(_costoController.text),
       'descripcion': _descripcionController.text,
       'fecha': Timestamp.now(),
     };
@@ -54,8 +60,7 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset:
-          false, // <-- evita que la imagen se mueva con el teclado
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         title: const Text(
@@ -70,12 +75,9 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
       ),
       body: Stack(
         children: [
-          // Imagen de fondo fija
           Positioned.fill(
             child: Image.asset('assets/images/oficina.png', fit: BoxFit.cover),
           ),
-
-          // Formulario con scroll
           SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: ConstrainedBox(
@@ -90,8 +92,6 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 30),
-
-                    // Código de barras
                     TextFormField(
                       controller: _codigoBarrasController,
                       decoration: InputDecoration(
@@ -111,8 +111,6 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
                       },
                     ),
                     const SizedBox(height: 30),
-
-                    // Nombre del producto
                     TextFormField(
                       controller: _nombreController,
                       decoration: InputDecoration(
@@ -132,38 +130,39 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
                       },
                     ),
                     const SizedBox(height: 30),
-
-                    // Cantidad y precio
+                    TextFormField(
+                      controller: _cantidadController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Cantidad inicial',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(Icons.inventory),
+                        filled: true,
+                        fillColor: AppColors.accent,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Ingresa la cantidad';
+                        }
+                        if (int.tryParse(value) == null) {
+                          return 'Debe ser un número';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 30),
                     Row(
                       children: [
                         Expanded(
                           child: TextFormField(
-                            controller: _cantidadController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'Cantidad',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              prefixIcon: const Icon(Icons.inventory),
-                              filled: true,
-                              fillColor: AppColors.accent,
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Ingresa la cantidad';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
                             controller: _precioController,
-                            keyboardType: TextInputType.number,
+                            keyboardType: TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
                             decoration: InputDecoration(
-                              labelText: 'Precio (\$)',
+                              labelText: 'Precio en venta (\$)',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -175,6 +174,36 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
                               if (value == null || value.isEmpty) {
                                 return 'Ingresa el precio';
                               }
+                              if (double.tryParse(value) == null) {
+                                return 'Debe ser un número';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _costoController,
+                            keyboardType: TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Costo unitario (\$)',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              prefixIcon: const Icon(Icons.money_off),
+                              filled: true,
+                              fillColor: AppColors.accent,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Ingresa el costo';
+                              }
+                              if (double.tryParse(value) == null) {
+                                return 'Debe ser un número';
+                              }
                               return null;
                             },
                           ),
@@ -182,13 +211,11 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
                       ],
                     ),
                     const SizedBox(height: 30),
-
-                    // Descripción
                     TextFormField(
                       controller: _descripcionController,
                       maxLines: 3,
                       decoration: InputDecoration(
-                        labelText: 'Descripción',
+                        labelText: 'Descripción (opcional)',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -198,16 +225,10 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
                       ),
                     ),
                     const SizedBox(height: 100),
-
-                    // Botón Guardar
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            _guardarProducto();
-                          }
-                        },
+                        onPressed: _guardarProducto,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(vertical: 16),

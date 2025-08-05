@@ -50,7 +50,9 @@ class HistorialGastosScreen extends StatelessWidget {
                   ? data['nombre']
                   : 'Gasto sin nombre';
               final categoria = data['categoria'] is String
-                  ? data['categoria']
+                  ? (data['categoria'] == 'Compra de productos e insumos'
+                        ? 'Productos/Insumos'
+                        : data['categoria'])
                   : 'Sin categoría';
               final tipoPago = data['tipoPago'] is String
                   ? data['tipoPago']

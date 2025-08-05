@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Colores de los bordes navegaroes
   static const Color primary = Color(0xFFFFEB3B);
   static const Color secondary = Color(0xFF000000);
   static const Color accent = Color(0xFFFFFFFF);
