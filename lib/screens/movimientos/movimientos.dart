@@ -21,15 +21,16 @@ class _MovimientosScreenState extends State<MovimientosScreen>
   int _currentIndex = 0;
 
   late PageController _pageController;
-
-  // Cache de streams para evitar recargas
-  late final List<Stream<List<DocumentSnapshot>>> _streams;
+  late List<Stream<List<DocumentSnapshot>>> _streams;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentIndex);
+    _initializeStreams();
+  }
 
+  void _initializeStreams() {
     _streams = List.generate(
       _tabs.length,
       (index) => _getStreamForIndex(index).shareReplay(),
@@ -52,11 +53,7 @@ class _MovimientosScreenState extends State<MovimientosScreen>
         _fechaSeleccionada!.month,
         _fechaSeleccionada!.day,
       );
-      final finDia = DateTime(
-        _fechaSeleccionada!.year,
-        _fechaSeleccionada!.month,
-        _fechaSeleccionada!.day + 1,
-      );
+      final finDia = inicioDia.add(const Duration(days: 1));
 
       return query
           .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicioDia))
@@ -64,13 +61,10 @@ class _MovimientosScreenState extends State<MovimientosScreen>
     }
 
     if (index == 1) {
-      // Ventas
-      return applyDateFilter(ventasQuery).snapshots().map((snap) => snap.docs);
+      return applyDateFilter(ventasQuery).snapshots().map((s) => s.docs);
     } else if (index == 2) {
-      // Gastos
-      return applyDateFilter(gastosQuery).snapshots().map((snap) => snap.docs);
+      return applyDateFilter(gastosQuery).snapshots().map((s) => s.docs);
     } else {
-      // Todos
       final ventasStream = applyDateFilter(
         ventasQuery,
       ).snapshots().map((s) => s.docs);
@@ -106,10 +100,7 @@ class _MovimientosScreenState extends State<MovimientosScreen>
     if (picked != null && picked != _fechaSeleccionada) {
       setState(() {
         _fechaSeleccionada = picked;
-        // Actualizar streams con nueva fecha
-        for (int i = 0; i < _tabs.length; i++) {
-          _streams[i] = _getStreamForIndex(i).shareReplay();
-        }
+        _initializeStreams();
       });
     }
   }
@@ -117,19 +108,15 @@ class _MovimientosScreenState extends State<MovimientosScreen>
   void _clearFechaFiltro() {
     setState(() {
       _fechaSeleccionada = null;
-      for (int i = 0; i < _tabs.length; i++) {
-        _streams[i] = _getStreamForIndex(i).shareReplay();
-      }
+      _initializeStreams();
     });
   }
 
   void _onTabTap(int index) {
-    setState(() => _currentIndex = index);
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-    );
+    setState(() {
+      _currentIndex = index;
+      _pageController.jumpToPage(index); // <-- sin animación
+    });
   }
 
   void _onPageChanged(int index) {
@@ -141,34 +128,21 @@ class _MovimientosScreenState extends State<MovimientosScreen>
     return Expanded(
       child: GestureDetector(
         onTap: () => _onTabTap(index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
+        child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
           decoration: BoxDecoration(
             color: selected ? AppColors.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : null,
           ),
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Center(
-            child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
+            child: Text(
+              _tabs[index],
               style: TextStyle(
                 color: selected ? Colors.white : Colors.grey[600],
                 fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                 fontSize: 16,
               ),
-              child: Text(_tabs[index]),
             ),
           ),
         ),
@@ -177,39 +151,41 @@ class _MovimientosScreenState extends State<MovimientosScreen>
   }
 
   Widget _buildMovimientosList(int index) {
-    return StreamBuilder<List<DocumentSnapshot>>(
-      stream: _streams[index],
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-            ),
-          );
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.receipt_long, size: 50, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                Text(
-                  _fechaSeleccionada == null
-                      ? 'No hay movimientos registrados'
-                      : 'No hay movimientos en la fecha seleccionada',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                ),
-              ],
-            ),
-          );
-        }
+    return KeepAlivePage(
+      child: StreamBuilder<List<DocumentSnapshot>>(
+        stream: _streams[index],
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            );
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.receipt_long, size: 50, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    _fechaSeleccionada == null
+                        ? 'No hay movimientos registrados'
+                        : 'No hay movimientos en la fecha seleccionada',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                  ),
+                ],
+              ),
+            );
+          }
 
-        return ListaMovimientos(
-          movimientos: snapshot.data!,
-          mostrarTipo: index == 0,
-        );
-      },
+          return ListaMovimientos(
+            movimientos: snapshot.data!,
+            mostrarTipo: index == 0,
+          );
+        },
+      ),
     );
   }
 
@@ -281,4 +257,25 @@ class _MovimientosScreenState extends State<MovimientosScreen>
       ),
     );
   }
+}
+
+class KeepAlivePage extends StatefulWidget {
+  final Widget child;
+
+  const KeepAlivePage({super.key, required this.child});
+
+  @override
+  State<KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+
+  @override
+  bool get wantKeepAlive => true;
 }

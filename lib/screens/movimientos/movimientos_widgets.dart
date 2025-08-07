@@ -42,7 +42,7 @@ class MovimientoItem extends StatelessWidget {
     final fecha = (data['fecha'] as Timestamp).toDate();
     final esVenta = documento.reference.path.contains('ventas');
     final total = data['total'] ?? 0.0;
-    final colorPrincipal = esVenta ? Colors.green : Colors.red;
+    final colorPrincipal = esVenta ? Colors.green : AppColors.rojo;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

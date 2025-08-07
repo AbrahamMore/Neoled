@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
 import 'package:pasos_flutter/screens/inicio.dart';
 
@@ -14,6 +15,7 @@ class _LoginState extends State<Login> {
   final emailController = TextEditingController();
   final passController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -25,6 +27,98 @@ class _LoginState extends State<Login> {
   bool isValidEmail(String email) {
     final emailRegex = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
     return emailRegex.hasMatch(email);
+  }
+
+  Future<void> _showResetPasswordDialog() async {
+    final resetEmailController = TextEditingController();
+    bool isSending = false;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Restablecer contraseña'),
+              content: TextField(
+                controller: resetEmailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Correo electrónico',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSending
+                      ? null
+                      : () {
+                          Navigator.of(context).pop();
+                        },
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: isSending
+                      ? null
+                      : () async {
+                          final email = resetEmailController.text.trim();
+                          if (!isValidEmail(email)) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Ingresa un correo válido'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+                          setStateDialog(() => isSending = true);
+                          try {
+                            await FirebaseAuth.instance.sendPasswordResetEmail(
+                              email: email,
+                            );
+                            if (!mounted) return;
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Correo de restablecimiento enviado. Revisa tu bandeja.',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } on FirebaseAuthException catch (e) {
+                            String message = 'Error al enviar el correo';
+                            if (e.code == 'user-not-found') {
+                              message = 'No existe usuario con ese correo';
+                            }
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(message),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                            setStateDialog(() => isSending = false);
+                          }
+                        },
+                  child: isSending
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Enviar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -144,7 +238,11 @@ class _LoginState extends State<Login> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: TextButton(
-                              onPressed: () {},
+                              onPressed: _isLoading
+                                  ? null
+                                  : () {
+                                      _showResetPasswordDialog();
+                                    },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                               ),
@@ -173,120 +271,150 @@ class _LoginState extends State<Login> {
                             width: double.infinity,
                             height: 38,
                             child: ElevatedButton(
-                              onPressed: () async {
-                                final email = emailController.text.trim();
-                                final password = passController.text;
+                              onPressed: _isLoading
+                                  ? null
+                                  : () async {
+                                      final email = emailController.text.trim();
+                                      final password = passController.text;
 
-                                FocusScope.of(
-                                  context,
-                                ).unfocus(); // Cierra teclado
+                                      FocusScope.of(
+                                        context,
+                                      ).unfocus(); // Cierra teclado
 
-                                if (email.isEmpty || password.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Por favor completa todos los campos',
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                  return;
-                                }
+                                      if (email.isEmpty || password.isEmpty) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Por favor completa todos los campos',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        return;
+                                      }
 
-                                if (!isValidEmail(email)) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'El correo ingresado no es válido',
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                  return;
-                                }
+                                      if (!isValidEmail(email)) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'El correo ingresado no es válido',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        return;
+                                      }
 
-                                try {
-                                  final credential = await FirebaseAuth.instance
-                                      .signInWithEmailAndPassword(
-                                        email: email,
-                                        password: password,
-                                      );
+                                      setState(() => _isLoading = true);
 
-                                  if (!context.mounted) return;
+                                      try {
+                                        final credential = await FirebaseAuth
+                                            .instance
+                                            .signInWithEmailAndPassword(
+                                              email: email,
+                                              password: password,
+                                            );
 
-                                  if (!credential.user!.emailVerified) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Verifica tu correo antes de iniciar sesión.',
-                                        ),
-                                        backgroundColor: Colors.orange,
-                                      ),
-                                    );
-                                    return;
-                                  }
+                                        if (!mounted) return;
 
-                                  // Pequeña espera para evitar parpadeos
-                                  await Future.delayed(
-                                    const Duration(milliseconds: 200),
-                                  );
+                                        if (!credential.user!.emailVerified) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Verifica tu correo antes de iniciar sesión.',
+                                              ),
+                                              backgroundColor: Colors.orange,
+                                            ),
+                                          );
+                                          setState(() => _isLoading = false);
+                                          return;
+                                        }
 
-                                  // Navegación limpia
-                                  Navigator.pushReplacement(
-                                    // ignore: use_build_context_synchronously
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const InicioScreen(),
-                                    ),
-                                  );
-                                } on FirebaseAuthException catch (e) {
-                                  String message = 'Error al iniciar sesión';
+                                        // Limpiar campos
+                                        emailController.clear();
+                                        passController.clear();
 
-                                  if (e.code == 'user-not-found') {
-                                    message =
-                                        'No se encontró un usuario con ese correo';
-                                  } else if (e.code == 'wrong-password') {
-                                    message = 'Contraseña incorrecta';
-                                  } else if (e.code == 'invalid-email') {
-                                    message = 'Correo electrónico inválido';
-                                  }
+                                        // Navegación limpia
+                                        SchedulerBinding.instance
+                                            .addPostFrameCallback((_) {
+                                              Navigator.pushReplacement(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      const InicioScreen(),
+                                                ),
+                                              );
+                                            });
+                                      } on FirebaseAuthException catch (e) {
+                                        String message =
+                                            'Error al iniciar sesión';
 
-                                  // ignore: use_build_context_synchronously
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(message),
-                                      backgroundColor: AppColors.rojo,
-                                    ),
-                                  );
-                                }
-                              },
+                                        if (e.code == 'user-not-found') {
+                                          message =
+                                              'No se encontró un usuario con ese correo';
+                                        } else if (e.code == 'wrong-password') {
+                                          message = 'Contraseña incorrecta';
+                                        } else if (e.code == 'invalid-email') {
+                                          message =
+                                              'Correo electrónico inválido';
+                                        }
+
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(message),
+                                              backgroundColor: AppColors.rojo,
+                                            ),
+                                          );
+                                        }
+                                      } finally {
+                                        if (mounted) {
+                                          setState(() => _isLoading = false);
+                                        }
+                                      }
+                                    },
                               style: ButtonStyle(
                                 backgroundColor:
-                                    WidgetStateProperty.resolveWith<Color>((
+                                    MaterialStateProperty.resolveWith<Color>((
                                       states,
                                     ) {
                                       if (states.contains(
-                                        WidgetState.pressed,
+                                        MaterialState.pressed,
                                       )) {
                                         return Colors.yellow[200]!;
                                       }
                                       return Colors.yellow;
                                     }),
-                                foregroundColor: WidgetStateProperty.all(
+                                foregroundColor: MaterialStateProperty.all(
                                   Colors.black,
                                 ),
-                                shape: WidgetStateProperty.all(
+                                shape: MaterialStateProperty.all(
                                   RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(40),
                                   ),
                                 ),
-                                elevation: WidgetStateProperty.all(2),
+                                elevation: MaterialStateProperty.all(2),
                               ),
-                              child: const Text(
-                                'Iniciar Sesión',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
+                              child: _isLoading
+                                  ? const CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.black,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Iniciar Sesión',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
                           ),
                         ],

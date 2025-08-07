@@ -26,6 +26,13 @@ class _CuentaScreenState extends State<CuentaScreen> {
     _loadUserData();
   }
 
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _apellidosController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadUserData() async {
     user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -35,7 +42,8 @@ class _CuentaScreenState extends State<CuentaScreen> {
           .doc(uid)
           .get();
 
-      if (doc.exists) {
+      // ✅ Solución: Se agregó la verificación de `mounted`
+      if (doc.exists && mounted) {
         setState(() {
           userData = doc.data();
           _nombreController.text = userData?['nombre'] ?? '';
@@ -58,19 +66,25 @@ class _CuentaScreenState extends State<CuentaScreen> {
               'apellidos': _apellidosController.text.trim(),
             });
 
-        setState(() {
-          _editando = false;
-          userData?['nombre'] = _nombreController.text.trim();
-          userData?['apellidos'] = _apellidosController.text.trim();
-        });
+        // ✅ Solución: Se agregó la verificación de `mounted`
+        if (mounted) {
+          setState(() {
+            _editando = false;
+            userData?['nombre'] = _nombreController.text.trim();
+            userData?['apellidos'] = _apellidosController.text.trim();
+          });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Datos actualizados correctamente')),
-        );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Datos actualizados correctamente')),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al actualizar: $e')));
+        // ✅ Solución: Se agregó la verificación de `mounted`
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error al actualizar: $e')));
+        }
       }
     }
   }
@@ -128,13 +142,19 @@ class _CuentaScreenState extends State<CuentaScreen> {
     if (resultado == true) {
       try {
         await user!.updatePassword(nueva.text.trim());
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Contraseña actualizada')));
+        // ✅ Solución: Se agregó la verificación de `mounted`
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Contraseña actualizada')),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cambiar la contraseña: $e')),
-        );
+        // ✅ Solución: Se agregó la verificación de `mounted`
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al cambiar la contraseña: $e')),
+          );
+        }
       }
     }
   }
@@ -202,12 +222,18 @@ class _CuentaScreenState extends State<CuentaScreen> {
                         ),
                         const SizedBox(height: 30),
 
-                        _buildCampo('Nombre', _nombreController, Icons.person),
+                        _buildCampo(
+                          'Nombre',
+                          _nombreController,
+                          Icons.person,
+                          enabled: _editando,
+                        ),
                         const SizedBox(height: 16),
                         _buildCampo(
                           'Apellidos',
                           _apellidosController,
                           Icons.person_2,
+                          enabled: _editando,
                         ),
                         const SizedBox(height: 16),
                         Container(

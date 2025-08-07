@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
 import 'package:pasos_flutter/screens/inventario/inventario.dart';
 import 'package:pasos_flutter/screens/cliente/clientes.dart';
@@ -6,14 +8,109 @@ import 'package:pasos_flutter/screens/proveedor/proveedores.dart';
 import 'package:pasos_flutter/screens/ventas/ventas.dart';
 import 'package:pasos_flutter/screens/gastos/gastos.dart';
 import 'package:pasos_flutter/screens/almacen/almacen.dart';
-import 'package:pasos_flutter/screens/empleados/roles_screen.dart';
-import 'package:pasos_flutter/screens/negocio.dart';
+import 'package:pasos_flutter/screens/empleados/roles.dart';
+import 'package:pasos_flutter/screens/negocio/negocio.dart';
 
-class InicioScreen extends StatelessWidget {
+class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key});
 
   @override
+  State<InicioScreen> createState() => _InicioScreenState();
+}
+
+class _InicioScreenState extends State<InicioScreen> {
+  Map<String, dynamic>? _usuario;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarUsuario();
+  }
+
+  Future<void> _cargarUsuario() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        setState(() {
+          _error = 'Usuario no autenticado.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final doc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(user.uid)
+          .get();
+
+      if (!doc.exists) {
+        setState(() {
+          _error = 'No se encontró el usuario en la base de datos.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _usuario = doc.data();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Ocurrió un error al cargar la información del usuario.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _mostrarErrorPermisos() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.red,
+        content: const Text('No tienes permisos para acceder a esta sección'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  bool _tienePermiso(String modulo) {
+    if (_usuario == null) return false;
+
+    if (_usuario!['rol'] == 'admin') return true;
+
+    final permisos = (_usuario!['permisos'] as List?)?.cast<String>() ?? [];
+    return permisos.contains(modulo);
+  }
+
+  void _navegarSiTienePermiso(String modulo, Widget destino) {
+    if (_tienePermiso(modulo)) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => destino));
+    } else {
+      _mostrarErrorPermisos();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Text(
+            _error!,
+            style: const TextStyle(color: Colors.red, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.secondary,
       appBar: AppBar(
@@ -44,176 +141,9 @@ class InicioScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const SizedBox(height: 16),
-
-                  // Nueva sección: Administrar negocio
-                  Container(
-                    width: 360,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Administrar negocio',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            // Botón de Negocio
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                ),
-                                child: ElevatedButton.icon(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const NegocioScreen(),
-                                      ),
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.store,
-                                    color: AppColors.secondary,
-                                  ),
-                                  label: const Text(
-                                    'Negocio',
-                                    style: TextStyle(
-                                      color: AppColors.secondary,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Botón de Almacén
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                ),
-                                child: ElevatedButton.icon(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const AlmacenScreen(),
-                                      ),
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.warehouse,
-                                    color: AppColors.secondary,
-                                  ),
-                                  label: const Text(
-                                    'Almacén',
-                                    style: TextStyle(
-                                      color: AppColors.secondary,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Sección de herramientas
-                  Container(
-                    width: 360,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Herramientas',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 16,
-                          runSpacing: 16,
-                          children: [
-                            _buildFixedToolCard(
-                              context,
-                              Icons.person,
-                              'Clientes',
-                              AppColors.azul,
-                            ),
-
-                            _buildFixedToolCard(
-                              context,
-                              Icons.local_shipping,
-                              'Proveedores',
-                              AppColors.rojo,
-                            ),
-                            _buildFixedToolCard(
-                              context,
-                              Icons.people,
-                              'Empleados',
-                              AppColors.primary,
-                            ),
-                            _buildFixedToolCard(
-                              context,
-                              Icons.inventory,
-                              'Inventario',
-                              AppColors.morado,
-                            ),
-                            _buildFixedToolCard(
-                              context,
-                              Icons.sell,
-                              'Ventas',
-                              AppColors.verde,
-                            ),
-                            _buildFixedToolCard(
-                              context,
-                              Icons.money_off,
-                              'Gastos',
-                              AppColors.rosa,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildAdminPanel(),
+                  const SizedBox(height: 16),
+                  _buildHerramientas(),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -224,57 +154,129 @@ class InicioScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFixedToolCard(
-    BuildContext context,
-    IconData icon,
-    String label,
-    Color color,
-  ) {
+  Widget _buildAdminPanel() {
+    return Container(
+      width: 360,
+      padding: const EdgeInsets.all(15),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Administrar negocio',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildAdminButton(
+                  label: 'Negocio',
+                  icon: Icons.store,
+                  onTap: () =>
+                      _navegarSiTienePermiso('Negocio', const NegocioScreen()),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildAdminButton(
+                  label: 'Almacén',
+                  icon: Icons.warehouse,
+                  onTap: () =>
+                      _navegarSiTienePermiso('Almacen', const AlmacenScreen()),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, color: AppColors.secondary),
+      label: Text(label, style: const TextStyle(color: AppColors.secondary)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+    );
+  }
+
+  Widget _buildHerramientas() {
+    final herramientas = [
+      ('Clientes', Icons.person, AppColors.azul, const ClientesScreen()),
+      (
+        'Proveedores',
+        Icons.local_shipping,
+        AppColors.rojo,
+        const ProveedoresScreen(),
+      ),
+      ('Empleados', Icons.people, AppColors.primary, const RolesScreen()),
+      (
+        'Inventario',
+        Icons.inventory,
+        AppColors.morado,
+        const InventarioScreen(),
+      ),
+      ('Ventas', Icons.sell, AppColors.verde, const VentasScreen()),
+      ('Gastos', Icons.money_off, AppColors.rosa, const GastosScreen()),
+    ];
+
+    return Container(
+      width: 360,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          const Text(
+            'Herramientas',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            alignment: WrapAlignment.center,
+            children: herramientas.map((h) {
+              return _buildToolCard(
+                label: h.$1,
+                icon: h.$2,
+                color: h.$3,
+                destino: h.$4,
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolCard({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required Widget destino,
+  }) {
     return Material(
       color: color,
       borderRadius: BorderRadius.circular(16),
       elevation: 4,
       child: InkWell(
-        onTap: () {
-          switch (label) {
-            case 'Clientes':
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ClientesScreen()),
-              );
-              break;
-            case 'Ventas':
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const VentasScreen()),
-              );
-              break;
-            case 'Proveedores':
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProveedoresScreen()),
-              );
-              break;
-            case 'Empleados':
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RolesScreen()),
-              );
-              break;
-            case 'Inventario':
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const InventarioScreen()),
-              );
-              break;
-            case 'Gastos':
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const GastosScreen()),
-              ); // Asegúrate de tenerla
-              break;
-          }
-        },
+        onTap: () => _navegarSiTienePermiso(label, destino),
         borderRadius: BorderRadius.circular(16),
         splashColor: Colors.white.withOpacity(0.3),
         highlightColor: Colors.white.withOpacity(0.15),

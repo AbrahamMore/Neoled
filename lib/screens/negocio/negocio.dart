@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
-import 'package:pie_chart/pie_chart.dart'; // nueva importación
+import 'package:pie_chart/pie_chart.dart';
+import 'package:pasos_flutter/screens/negocio/reportes.dart';
 
 class NegocioScreen extends StatefulWidget {
   const NegocioScreen({super.key});
@@ -178,6 +179,17 @@ class _NegocioScreenState extends State<NegocioScreen> {
         title: const Text('Reporte Financiero'),
         backgroundColor: AppColors.primary,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ReportesFinancierosScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _cargarDatos),
         ],
       ),

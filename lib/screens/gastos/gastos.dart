@@ -103,7 +103,7 @@ class _GastosScreenState extends State<GastosScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('No se pueden registrar gastos con fecha futura'),
-              backgroundColor: Colors.red,
+              backgroundColor: AppColors.rojo,
             ),
           );
         }
@@ -120,6 +120,19 @@ class _GastosScreenState extends State<GastosScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+
+    // Validación adicional del nombre (aunque el Form validator ya lo hace)
+    if (_nombreController.text.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El nombre del gasto es obligatorio'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
 
     try {
       final userDoc = await FirebaseFirestore.instance
@@ -146,9 +159,8 @@ class _GastosScreenState extends State<GastosScreen> {
           : fechaActual;
 
       final gastoData = {
-        'nombre': _nombreController.text.isNotEmpty
-            ? _nombreController.text
-            : null,
+        'nombre': _nombreController
+            .text, // Ahora siempre tiene valor (no puede ser null)
         'categoria': _categoriaSeleccionada,
         'valor': _categoriaSeleccionada == 'Compra de productos e insumos'
             ? _valorTotalProductos
@@ -252,12 +264,23 @@ class _GastosScreenState extends State<GastosScreen> {
               TextFormField(
                 controller: _nombreController,
                 decoration: InputDecoration(
-                  labelText: 'Nombre del gasto (opcional)',
+                  labelText:
+                      'Nombre del gasto', // Cambiado de "(opcional)" a obligatorio
                   prefixIcon: const Icon(Icons.description),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  errorStyle: TextStyle(
+                    color: AppColors.rojo,
+                  ), // Mensaje de error en rojo
                 ),
+                validator: (value) {
+                  // Añadir validador
+                  if (value == null || value.isEmpty) {
+                    return 'El nombre del gasto es obligatorio';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 

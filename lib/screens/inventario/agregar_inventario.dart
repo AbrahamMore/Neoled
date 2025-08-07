@@ -35,7 +35,8 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final producto = {
-      'codigo_barras': _codigoBarrasController.text,
+      if (_codigoBarrasController.text.isNotEmpty)
+        'codigo_barras': _codigoBarrasController.text,
       'nombre': _nombreController.text,
       'cantidad': int.parse(_cantidadController.text),
       'precio': double.parse(_precioController.text),
@@ -95,7 +96,8 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
                     TextFormField(
                       controller: _codigoBarrasController,
                       decoration: InputDecoration(
-                        labelText: 'Código de barras',
+                        labelText:
+                            'Código de barras (opcional)', // Añadido (opcional)
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -103,12 +105,7 @@ class _AgregarInventarioScreenState extends State<AgregarInventarioScreen> {
                         filled: true,
                         fillColor: AppColors.accent,
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Ingresa el código';
-                        }
-                        return null;
-                      },
+                      // Se eliminó el validador para hacerlo opcional
                     ),
                     const SizedBox(height: 30),
                     TextFormField(

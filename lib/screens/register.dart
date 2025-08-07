@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // <-- Agregado
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/components/auth_exception_handler.dart';
-import 'package:pasos_flutter/core/app_colors.dart'; // Widget personalizado para errores
+import 'package:pasos_flutter/core/app_colors.dart';
+import 'package:pasos_flutter/screens/login.dart';
 
 class Register extends StatefulWidget {
   const Register({super.key});
@@ -12,7 +13,6 @@ class Register extends StatefulWidget {
 }
 
 class _RegisterState extends State<Register> {
-  // Controladores para los campos de texto
   final _formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
   final lastNameController = TextEditingController();
@@ -20,7 +20,6 @@ class _RegisterState extends State<Register> {
   final passController = TextEditingController();
   final confirmPassController = TextEditingController();
 
-  // Variables de estado
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
@@ -41,49 +40,109 @@ class _RegisterState extends State<Register> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Crear usuario en Firebase Auth
+      final email = emailController.text.trim();
+      final password = passController.text.trim();
+      final nombre = nameController.text.trim();
+      final apellidos = lastNameController.text.trim();
+
+      // Crear usuario
       final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: emailController.text.trim(),
-            password: passController.text.trim(),
-          );
+          .createUserWithEmailAndPassword(email: email, password: password);
 
-      // 2. Actualizar perfil del usuario con nombre completo
-      await credential.user!.updateDisplayName(
-        '${nameController.text.trim()} ${lastNameController.text.trim()}',
-      );
+      final user = credential.user!;
 
-      // 3. Enviar verificación por email (opcional)
-      await credential.user!.sendEmailVerification();
+      await user.updateDisplayName('$nombre $apellidos');
+      await user.sendEmailVerification();
 
-      // 4. Guardar información adicional en Firestore
+      // Obtener número de usuarios existentes
+      final usuarios = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .get();
+
+      final esPrimerUsuario = usuarios.docs.isEmpty;
+
+      // Guardar datos en Firestore con merge para evitar duplicados
       await FirebaseFirestore.instance
-          .collection('usuarios') // Colección donde guardas usuarios
-          .doc(credential.user!.uid)
+          .collection('usuarios')
+          .doc(user.uid)
           .set({
-            'uid': credential.user!.uid,
-            'nombre': nameController.text.trim(),
-            'apellidos': lastNameController.text.trim(),
-            'email': emailController.text.trim(),
-            'rol': 'cliente', // Puedes cambiar o manejar roles aquí
+            'uid': user.uid,
+            'nombre': nombre,
+            'apellidos': apellidos,
+            'email': email,
+            'rol': esPrimerUsuario ? 'admin' : 'empleado',
             'fechaRegistro': FieldValue.serverTimestamp(),
-          });
+          }, SetOptions(merge: true));
+
+      // Si es el primer usuario, crea también el doc /config/admin
+      if (esPrimerUsuario) {
+        await FirebaseFirestore.instance.collection('config').doc('admin').set({
+          'adminPrincipal': user.uid,
+        });
+      }
 
       if (!mounted) return;
 
-      // Mostrar mensaje de éxito
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Registro exitoso. Por favor verifica tu correo.'),
+          content: Text('Registro exitoso. Verifica tu correo electrónico.'),
           backgroundColor: Colors.green,
         ),
       );
 
+      // Limpiar campos
+      nameController.clear();
+      lastNameController.clear();
+      emailController.clear();
+      passController.clear();
+      confirmPassController.clear();
+
       await Future.delayed(const Duration(seconds: 2));
-      Navigator.pushReplacementNamed(context, '/verify-email');
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const Login()),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      AuthExceptionHandler.showSnackbar(context, e.code);
+
+      if (e.code == 'email-already-in-use') {
+        // El usuario ya está registrado
+        final userMethods = FirebaseAuth.instance;
+        final signInMethods = await userMethods.fetchSignInMethodsForEmail(
+          emailController.text.trim(),
+        );
+
+        if (signInMethods.contains('password')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Este correo ya está registrado. Inicia sesión o verifica tu email.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Correo ya en uso con otro método de autenticación.',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        AuthExceptionHandler.showSnackbar(context, e.code);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -99,7 +158,6 @@ class _RegisterState extends State<Register> {
       backgroundColor: Colors.grey[300],
       body: Stack(
         children: [
-          // Fondo superior (manteniendo tu diseño original)
           Positioned(
             top: 0,
             left: 0,
@@ -116,8 +174,6 @@ class _RegisterState extends State<Register> {
               ),
             ),
           ),
-
-          // Formulario
           Align(
             alignment: Alignment.topCenter,
             child: Padding(
@@ -152,8 +208,6 @@ class _RegisterState extends State<Register> {
                             ),
                           ),
                           const SizedBox(height: 20),
-
-                          // Campos del formulario con validación
                           _buildTextFormField(
                             controller: nameController,
                             label: 'Nombre',
@@ -161,7 +215,6 @@ class _RegisterState extends State<Register> {
                                 ? 'Por favor ingresa tu nombre'
                                 : null,
                           ),
-
                           _buildTextFormField(
                             controller: lastNameController,
                             label: 'Apellidos',
@@ -169,7 +222,6 @@ class _RegisterState extends State<Register> {
                                 ? 'Por favor ingresa tus apellidos'
                                 : null,
                           ),
-
                           _buildTextFormField(
                             controller: emailController,
                             label: 'E-mail',
@@ -178,7 +230,6 @@ class _RegisterState extends State<Register> {
                                 ? 'Ingresa un email válido'
                                 : null,
                           ),
-
                           _buildPasswordField(
                             controller: passController,
                             label: 'Contraseña',
@@ -190,7 +241,6 @@ class _RegisterState extends State<Register> {
                                 ? 'Mínimo 6 caracteres'
                                 : null,
                           ),
-
                           _buildPasswordField(
                             controller: confirmPassController,
                             label: 'Confirmar contraseña',
@@ -203,10 +253,7 @@ class _RegisterState extends State<Register> {
                                 ? 'Las contraseñas no coinciden'
                                 : null,
                           ),
-
                           const SizedBox(height: 20),
-
-                          // Botón de registro
                           SizedBox(
                             width: double.infinity,
                             height: 45,
@@ -247,7 +294,6 @@ class _RegisterState extends State<Register> {
     );
   }
 
-  // Widgets reutilizables (podrías moverlos a /components/)
   Widget _buildTextFormField({
     required TextEditingController controller,
     required String label,
