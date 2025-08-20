@@ -84,7 +84,7 @@ class _ReportesFinancierosScreenState extends State<ReportesFinancierosScreen> {
         detalles.add({
           'fecha': data['fecha'],
           'total': ventaTotal,
-          'items': data['items'],
+          'items': data['items'] ?? [],
         });
       }
 
@@ -130,12 +130,11 @@ class _ReportesFinancierosScreenState extends State<ReportesFinancierosScreen> {
 
   Future<double> calcularValorInventarioFiltrado() async {
     try {
-      Query query = _firestore.collection('inventario');
-      final snapshot = await query.get();
+      final snapshot = await _firestore.collection('inventario').get();
       double total = 0.0;
 
       for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final costo = _parseDouble(data['costo']);
         final cantidad = _parseInt(data['cantidad']);
         total += costo * cantidad;
@@ -169,7 +168,6 @@ class _ReportesFinancierosScreenState extends State<ReportesFinancierosScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Tipo de Reporte
             DropdownButtonFormField<String>(
               value: _tipoReporte,
               items: const [
@@ -183,68 +181,56 @@ class _ReportesFinancierosScreenState extends State<ReportesFinancierosScreen> {
               decoration: const InputDecoration(
                 labelText: 'Tipo de Reporte',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10),
               ),
               isExpanded: true,
             ),
-
             const SizedBox(height: 16),
-
-            // Fila para Mes y Año
             Row(
               children: [
                 if (_tipoReporte == 'mensual')
                   Expanded(
                     child: DropdownButtonFormField<int>(
                       value: _mesSeleccionado,
-                      items: List.generate(12, (index) => index + 1)
+                      items: List.generate(12, (i) => i + 1)
                           .map(
-                            (mes) => DropdownMenuItem(
-                              value: mes,
+                            (m) => DropdownMenuItem(
+                              value: m,
                               child: Text(
-                                DateFormat('MMMM').format(DateTime(2020, mes)),
+                                DateFormat(
+                                  'MMMM',
+                                  'es',
+                                ).format(DateTime(2020, m)),
                               ),
                             ),
                           )
                           .toList(),
-                      onChanged: (value) {
-                        setState(() => _mesSeleccionado = value!);
+                      onChanged: (v) {
+                        setState(() => _mesSeleccionado = v!);
                         _cargarDatos();
                       },
                       decoration: const InputDecoration(
                         labelText: 'Mes',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10),
                       ),
                       isExpanded: true,
                     ),
                   ),
-
                 if (_tipoReporte == 'mensual') const SizedBox(width: 16),
-
                 Expanded(
                   child: DropdownButtonFormField<int>(
                     value: _anioSeleccionado,
-                    items:
-                        List.generate(
-                              5,
-                              (index) => DateTime.now().year - 2 + index,
-                            )
-                            .map(
-                              (anio) => DropdownMenuItem(
-                                value: anio,
-                                child: Text(anio.toString()),
-                              ),
-                            )
-                            .toList(),
-                    onChanged: (value) {
-                      setState(() => _anioSeleccionado = value!);
+                    items: List.generate(5, (i) => DateTime.now().year - 2 + i)
+                        .map(
+                          (a) => DropdownMenuItem(value: a, child: Text('$a')),
+                        )
+                        .toList(),
+                    onChanged: (v) {
+                      setState(() => _anioSeleccionado = v!);
                       _cargarDatos();
                     },
                     decoration: const InputDecoration(
                       labelText: 'Año',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
                     ),
                     isExpanded: true,
                   ),
@@ -289,10 +275,6 @@ class _ReportesFinancierosScreenState extends State<ReportesFinancierosScreen> {
   @override
   Widget build(BuildContext context) {
     final double gananciasBrutas = _totalVentas - _totalGastos;
-    final double margenGanancias = _totalVentas > 0
-        ? (gananciasBrutas / _totalVentas) * 100
-        : 0;
-
     final Map<String, double> dataMap = {
       'Ventas': _totalVentas,
       'Gastos': _totalGastos,

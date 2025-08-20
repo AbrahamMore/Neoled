@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
+import 'package:pasos_flutter/screens/main_navigation.dart';
 
 class CuentaScreen extends StatefulWidget {
   const CuentaScreen({super.key});
@@ -187,7 +188,16 @@ class _CuentaScreenState extends State<CuentaScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        leading: const BackButton(color: AppColors.secondary),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.secondary),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const MainNavigation()),
+              (route) => false,
+            );
+          },
+        ),
         backgroundColor: AppColors.primary,
         centerTitle: true,
         title: const Text(
@@ -195,6 +205,7 @@ class _CuentaScreenState extends State<CuentaScreen> {
           style: TextStyle(color: AppColors.secondary),
         ),
       ),
+
       body: Stack(
         children: [
           Positioned.fill(

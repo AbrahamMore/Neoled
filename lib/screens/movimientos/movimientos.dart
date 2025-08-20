@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pasos_flutter/core/app_colors.dart';
 import 'package:pasos_flutter/screens/movimientos/movimientos_widgets.dart';
+import 'package:pasos_flutter/screens/main_navigation.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:intl/intl.dart';
 
@@ -193,6 +194,16 @@ class _MovimientosScreenState extends State<MovimientosScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.secondary),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const MainNavigation()),
+              (route) => false,
+            );
+          },
+        ),
         backgroundColor: AppColors.primary,
         title: const Text('Movimientos'),
         centerTitle: true,
@@ -210,6 +221,7 @@ class _MovimientosScreenState extends State<MovimientosScreen>
             ),
         ],
       ),
+
       body: Column(
         children: [
           Container(

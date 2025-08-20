@@ -9,9 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-    intl: ^0.18.1
-  rxdart: ^0.27.7
   intl: ^0.18.1
+  rxdart: ^0.27.7
   firebase_core: ^2.31.0
   firebase_auth: ^4.17.0
   cloud_firestore: ^4.17.0

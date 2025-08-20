@@ -52,7 +52,6 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
   }
 
   Future<void> _cargarUsuarios() async {
-    // Reemplaza esto con tu consulta a Firestore para usuarios
     setState(() {
       _usuarios = [
         'Juan Pérez',
@@ -99,7 +98,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Selecciona al menos un producto'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.rojo,
         ),
       );
       return;
@@ -109,7 +108,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Selecciona un usuario'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.rojo,
         ),
       );
       return;
@@ -123,7 +122,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Cantidad inválida para ${producto['nombre']}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.rojo,
           ),
         );
         return;
@@ -135,7 +134,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
             content: Text(
               'No hay suficiente stock de ${producto['nombre']}. Disponible: ${producto['cantidad']}',
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.rojo,
           ),
         );
         return;
@@ -175,7 +174,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Salidas registradas correctamente'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.verde,
         ),
       );
 
@@ -188,7 +187,7 @@ class _AlmacenScreenState extends State<AlmacenScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al registrar: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.rojo,
         ),
       );
     }

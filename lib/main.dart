@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:intl/date_symbol_data_local.dart'; // <-- IMPORT NECESARIO
 import 'firebase_options.dart';
 import 'services/auth_checker.dart';
 
@@ -12,6 +13,16 @@ import 'screens/bienvenida.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Inicializa los datos de formato de fecha para español
+  // Si quieres soportar más idiomas, puedes llamar initializeDateFormatting() sin args
+  try {
+    await initializeDateFormatting('es', null);
+  } catch (e) {
+    // No es crítico: dejamos un warning pero la app no debería crashear (ver fallback abajo)
+    print('Warning initializeDateFormatting: $e');
+  }
+
   runApp(const MyApp());
 }
 

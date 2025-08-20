@@ -50,7 +50,7 @@ class _RolesScreenState extends State<RolesScreen> {
     final snapshot = await _firestore.collection('usuarios').get();
     return snapshot.docs.map((doc) {
       final data = doc.data();
-      data['uid'] = doc.id; // Asegurar que tenemos el UID
+      data['uid'] = doc.id;
       return data;
     }).toList();
   }

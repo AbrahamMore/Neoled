@@ -215,22 +215,22 @@ class _NegocioScreenState extends State<NegocioScreen> {
                       _buildResumenCard(
                         'Inventario',
                         _valorInventario,
-                        Colors.blue,
+                        AppColors.azul,
                       ),
                       _buildResumenCard(
                         'Ventas Totales',
                         _totalVentas,
-                        Colors.green,
+                        AppColors.verde,
                       ),
                       _buildResumenCard(
                         'Gastos Totales',
                         _totalGastos,
-                        Colors.red,
+                        AppColors.rojo,
                       ),
                       _buildResumenCard(
                         'Ganancias',
                         gananciasBrutas,
-                        gananciasBrutas >= 0 ? Colors.green : Colors.red,
+                        gananciasBrutas >= 0 ? AppColors.verde : AppColors.rojo,
                       ),
                     ],
                   ),
@@ -249,13 +249,15 @@ class _NegocioScreenState extends State<NegocioScreen> {
                         _buildIndicadorFinanciero(
                           'Margen de ganancias',
                           margenGanancias,
-                          margenGanancias >= 0 ? Colors.green : Colors.red,
+                          margenGanancias >= 0
+                              ? AppColors.verde
+                              : AppColors.rojo,
                           esPorcentaje: true,
                         ),
                         _buildIndicadorFinanciero(
                           'Retorno sobre inventario',
                           retornoInventario,
-                          Colors.blue,
+                          AppColors.azul,
                           esPorcentaje: true,
                         ),
                         _buildIndicadorFinanciero(
@@ -273,8 +275,8 @@ class _NegocioScreenState extends State<NegocioScreen> {
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: margenGanancias >= 0
-                                  ? Colors.green
-                                  : Colors.red,
+                                  ? AppColors.verde
+                                  : AppColors.rojo,
                             ),
                             textAlign: TextAlign.center,
                           ),

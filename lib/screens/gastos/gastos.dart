@@ -121,13 +121,12 @@ class _GastosScreenState extends State<GastosScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // Validación adicional del nombre (aunque el Form validator ya lo hace)
     if (_nombreController.text.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('El nombre del gasto es obligatorio'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.rojo,
           ),
         );
       }
@@ -211,7 +210,7 @@ class _GastosScreenState extends State<GastosScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Gasto registrado exitosamente'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.verde,
           ),
         );
 

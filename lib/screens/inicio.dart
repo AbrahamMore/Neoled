@@ -116,10 +116,7 @@ class _InicioScreenState extends State<InicioScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black),
-          onPressed: () {},
-        ),
+        centerTitle: true, // 👈 centra el título
         title: const Text(
           'NEOLEDMEX',
           style: TextStyle(
@@ -129,6 +126,7 @@ class _InicioScreenState extends State<InicioScreen> {
           ),
         ),
       ),
+
       body: Stack(
         children: [
           Positioned.fill(
